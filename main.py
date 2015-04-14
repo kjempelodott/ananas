@@ -66,10 +66,10 @@ class Fronter(object):
 
     def __init__(self):
         self.cookies = {
-            "org_feide"       : Cookie(Fronter.IDENTITY_PROVIDER, "org_feide", "/simplesaml/module.php/feide/", "uio.no"),
-            "SAMLSessionID"   : None,
-            "SAMLAuthToken"   : None,
-            "shibsession"     : None
+            "org_feide"     : Cookie(Fronter.IDENTITY_PROVIDER, "org_feide", "/simplesaml/module.php/feide/", "uio.no"),
+            "SAMLSessionID" : None,
+            "SAMLAuthToken" : None,
+            "shibsession"   : None
         }
         self.connect()
 
@@ -181,7 +181,7 @@ class Fronter(object):
         # Authorize
         path = "/sso/shibboleth2/sp/feide-idp"
         header = {
-            "Accept"       : "text/html,application/xhtml+xml,appication/xml",
+            "Accept" : "text/html,application/xhtml+xml,appication/xml",
         }
         response, content = self.__SPConnection__.request(path, "GET", sp_query, header)
         status = response.status
@@ -189,6 +189,9 @@ class Fronter(object):
             print("Exception in Shibboleth authorization (SP): %s (%s)" %
                   (status, response.reason))
             exit(1)
+        
+        #TODO: Authorization failed ...
+        print content
 
 if __name__ == "__main__":
     cli = Fronter()
