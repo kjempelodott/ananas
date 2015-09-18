@@ -5,6 +5,7 @@ import httplib, urllib
 from urlparse import urlparse
 from socket import gaierror
 
+
 class Cookie:
     def __init__(self, host, name = None, path = "/", content = None):
         self.host = host
@@ -17,7 +18,7 @@ class Cookie:
 
 
 class Connection(httplib.HTTPSConnection, object):
-    
+
     def __init__(self, host, header = None):
         super(Connection, self).__init__(host)
         self.header = header if header else {}
@@ -27,31 +28,28 @@ class Connection(httplib.HTTPSConnection, object):
         try:
             assert(cookie.host == self.host)
         except:
-            print "WARNING (in Cookie): host mismatch (%s)" % cookie.name
+            print("WARNING (in Cookie): host mismatch (%s)" % cookie.name)
             return False
+
         if self.header.has_key("Cookie"):
             self.header["Cookie"] += ";" + str(cookie)
         else:
             self.header["Cookie"] = str(cookie)
+
         self.cookies.append(cookie)
         return True
 
-    def request(self, url, method, body = None, header = {}, DEBUG = False):
+    def request(self, url, method, body = None, header = {}):
         try:
+            print url
             header.update(self.header)
             if body:
                 body = "&".join("%s=%s" % entry for entry in body)
-            if DEBUG:
-                print "REQUEST\n" + urllib.unquote(url)
-                print "REQUEST HEADER\n" + str(header)
-                print "REQUEST BODY\n" + str(body)
             super(Connection, self).request(method, url, body, header)
             response = self.getresponse()
             content = response.read()
-            if DEBUG:
-                print "RESPONSE HEADER\n" + str(response.getheaders())
-                print "CONTENT\n" + content + "\n"
             return response, content
+
         except gaierror as e:
             print("Name or service not known: " + host)
             exit(1)
@@ -61,12 +59,16 @@ class Fronter(object):
 
     SERVICE_PROVIDER = "sp.fronter.com"
     IDENTITY_PROVIDER = "idp.feide.no"
-    SP_HEADER = {"User-Agent" : "httplib"}
-    IDP_HEADER = {"User-Agent" : "httplib"}
+    TARGET = "http://fronter.com/uio/"
+    HEADER = {
+        "Accept"       : "text/html,application/xhtml+xml,appication/xml",
+        "Content-type" : "application/x-www-form-urlencoded",
+    }
 
     def __init__(self):
         self.cookies = {
-            "org_feide"     : Cookie(Fronter.IDENTITY_PROVIDER, "org_feide", "/simplesaml/module.php/feide/", "uio.no"),
+            "org_feide"     : Cookie(Fronter.IDENTITY_PROVIDER, "org_feide",
+                                     "/simplesaml/module.php/feide/", "uio.no"),
             "SAMLSessionID" : None,
             "SAMLAuthToken" : None,
             "shibsession"   : None
@@ -74,124 +76,150 @@ class Fronter(object):
         self.connect()
 
     def connect(self):
-        self.__SPConnection__ = \
-                    Connection(Fronter.SERVICE_PROVIDER, Fronter.SP_HEADER)
-        self.__IDPConnection__ = \
-                    Connection(Fronter.IDENTITY_PROVIDER, Fronter.IDP_HEADER)
-        self.__SPConnection__.connect()
-        self.__IDPConnection__.connect()
-        self.__IDPConnection__.addcookie(self.cookies["org_feide"])
+        self._SPConnection = Connection(Fronter.SERVICE_PROVIDER)
+        self._IDPConnection = Connection(Fronter.IDENTITY_PROVIDER, Fronter.HEADER)
+        self._SPConnection.connect()
+        self._IDPConnection.connect()
+        self._IDPConnection.addcookie(self.cookies["org_feide"])
 
     def close(self):
-        self.__SPConnection__.close()
-        self.__IDPConnection__.close()
+        self._SPConnection.close()
+        self._IDPConnection.close()
 
     def login(self):
-        sp_query, login_url = self.__SPrequestResource__()
-        saml_response, relay_state = self.__fillLoginForm__(login_url)
-        self.__SPsendResponse__(saml_response, relay_state, sp_query)
+        timestr = str(int(time.time()))
+        sso_request_redir = self._requestTargetResource(timestr, True)
+        login_redir = self._requestSSOService(sso_request_redir)
+        saml_response, relay_state = self._feideLogin(login_redir)
+        self._requestAssertionConsumerService(saml_response, relay_state)
+        self._requestTargetResource(timestr)
 
-    def __SPrequestResource__(self):
-        # Get SAMLRequest from SP
+
+    def _requestTargetResource(self, timestr, redir=False):
+
+        """
+        Request target resource
+        # 1, 7
+        """ 
+
         body = (
             ("shire"      , "SHIBBOLETH_SP_SHIRE"),
-            ("target"     , "http://fronter.com/uio/"),
-            ("time"       , str(int(time.time()))),
+            ("target"     , Fronter.TARGET),
+            ("time"       , timestr),
             ("providerId" , "SHIBBOLETH_SP_PROVIDER_ID")
         )
         path = "/sso/shibboleth2/sp/feide-idp"
-        response, content = self.__SPConnection__.request(path, "GET", body)
-        status = response.status
-        if status != 302:
-            print("Exception in SAMLRequest (SP): %s (%s)" %
-                  (status, response.reason))
-            exit(1)
-        saml_request = urlparse(response.getheader("Location"))
 
-        # Get SAMLSessionID cookie from IDP
-        url = saml_request.path + "?" + saml_request.query
-        response, content = self.__IDPConnection__.request(url, "GET")
+        response, content = self._SPConnection.request(path, "GET", body)
+        status = response.status
+
+        if not redir:
+            if status != 200:
+                print("Exception in SP request: %s (%s)" % (status, response.reason))
+                exit(1)
+            return
+
+        else:
+            if status != 302:
+                print("Exception in SP request: %s (%s)" % (status, response.reason))
+                exit(1)
+            sso_request_redir = urlparse(response.getheader("Location"))
+            return sso_request_redir
+
+        
+    def _requestSSOService(self, request):
+        
+        """
+        Request SSO service and recieve SAMLSessionID cookie from IDP
+        # 3
+        """
+
+        url = request.path + "?" + request.query
+        response, content = self._IDPConnection.request(url, "GET")
         status = response.status
         if status != 302:
-            print("Exception in SAMLRequest (IDP): %s (%s)" %
-                  (status, response.reason))
+            print("Exception in IDP request: %s (%s)" % (status, response.reason))
             exit(1)
 
         # Set SAMLSessionID cookie
-        c = response.getheader("Set-Cookie").split(",")[1]
-        c = re.match(".*?(?P<name>SimpleSAMLSessionID)=(?P<content>(.+?)); path=(?P<path>(.+?));", c).groupdict()
-        self.cookies["SAMLSessionID"] = Cookie(Fronter.IDENTITY_PROVIDER, c["name"], c["path"], c["content"])
-        self.__IDPConnection__.addcookie(self.cookies["SAMLSessionID"])
+        cookie = response.getheader("Set-Cookie").split(",")[-1]
+        pattern = ".*?(?P<name>SimpleSAMLSessionID)=(?P<content>(.+?)); path=(?P<path>(.+?));"
+        cookie = re.match(pattern, cookie).groupdict()
+        self.cookies["SAMLSessionID"] = Cookie(Fronter.IDENTITY_PROVIDER, cookie["name"],
+                                               cookie["path"], cookie["content"])
+        self._IDPConnection.addcookie(self.cookies["SAMLSessionID"])
 
-        # Return login request url and SP query (timestamp)
-        return body, urlparse(response.getheader("Location"))
+        # Return URL to login form
+        return urlparse(response.getheader("Location"))
 
-    def __fillLoginForm__(self, login_url):
-        # Login with IDP
-        url = login_url.path + "?" + login_url.query
+
+    def _feideLogin(self, login_redir):
+
+        """
+        Login with feide, the identity provider and receive SAMLAuthToken cookie from IDP
+        # 4
+        """
+
+        url = login_redir.path + "?" + login_redir.query
         from getpass import getpass
         body = (
-            ("feidename", raw_input("Username: ")),
+            ("feidename", "Username: "),
             ("password" , getpass()),
+            ("org"      , "uio.no"),
         )
-        header = {
-            "Accept"       : "text/html,application/xhtml+xml,appication/xml",
-            "Content-type" : "application/x-www-form-urlencoded",
-        }
-        response, content = self.__IDPConnection__.request(url, "POST", body, header)
+
+        response, content = self._IDPConnection.request(url, "POST", body)
         status = response.status
         if status != 200:
-            print("Exception in login (IDP): %s (%s)" %
-                  (status, response.reason))
+            print("Exception in IDP request: %s (%s)" % (status, response.reason))
             exit(1)
 
-        # Set SAMLAuthToken cookie
-        c = re.match(".*?(?P<name>SimpleSAMLAuthToken)=(?P<content>(.+?)); path=(?P<path>(.+?));", response.getheader("Set-Cookie")).groupdict()
-        self.cookies["SAMLAuthToken"] = Cookie(Fronter.IDENTITY_PROVIDER, c["name"], c["path"], c["content"])
-        self.__IDPConnection__.addcookie(self.cookies["SAMLAuthToken"])
+        try:
+            # Set SAMLAuthToken cookie
+            cookie = response.getheader("Set-Cookie")
+            pattern = ".*?(?P<name>SimpleSAMLAuthToken)=(?P<content>(.+?)); path=(?P<path>(.+?));"
+            cookie = re.match(pattern, cookie).groupdict()
+            self.cookies["SAMLAuthToken"] = Cookie(Fronter.IDENTITY_PROVIDER, cookie["name"], 
+                                                   cookie["path"], cookie["content"])
+            self._IDPConnection.addcookie(self.cookies["SAMLAuthToken"])
+        except:
+            print("Wrong username and/or password!")
+            exit(1)
 
         # Return SAMLResponse and RelayState
-        saml_response = urllib.quote(re.findall("name=\"SAMLResponse\" value=\"(.+?)\"", content)[-1])
+        saml_response = re.findall("name=\"SAMLResponse\" value=\"(.+?)\"", content)[-1]
         relay_state = re.findall("name=\"RelayState\" value=\"(.+?)\"", content)[-1]
-        return saml_response, relay_state
+        return  urllib.quote(saml_response), urllib.quote(relay_state)
 
-    def __SPsendResponse__(self, saml_response, relay_state, sp_query):
-        # Return SAMLResponse to SP
+
+    def _requestAssertionConsumerService(self, saml_response, relay_state):
+
+        """ 
+        Request Assertion Consumer Service and receive shibsession cookie from SP
+        # 5
+        """
+
         path = "/Shibboleth.sso/SAML2/POST"
         body = (
             ("SAMLResponse", saml_response),
             ("RelayState"  , relay_state),
         )
-        header = {
-            "Accept"       : "text/html,application/xhtml+xml,appication/xml",
-            "Content-type" : "application/x-www-form-urlencoded",
-        }
-        response, content = self.__SPConnection__.request(path, "POST", body, header)
+
+        response, content = self._SPConnection.request(path, "POST", body)
         status = response.status
         if status != 302:
-            print("Exception in SAMLResponse return (SP): %s (%s)" %
-                  (status, response.reason))
+            print("Exception in SP request: %s (%s)" % (status, response.reason))
             exit(1)
 
         # Set shibsession cookie
-        c = re.match(".*?(?P<name>.+?)=(?P<content>(.+?)); path=(?P<path>(.+?));", response.getheader("Set-Cookie")).groupdict()
-        self.cookies["shibsession"] = Cookie(Fronter.SERVICE_PROVIDER, c["name"], c["path"], c["content"])
-        self.__SPConnection__.addcookie(self.cookies["shibsession"])
+        cookie = response.getheader("Set-Cookie")
+        pattern = ".*?(?P<name>_shibsession\w+?)=(?P<content>(.+?)); path=(?P<path>(.+?));"
+        cookie = re.match(pattern, cookie).groupdict()
+        self.cookies["shibsession"] = Cookie(Fronter.SERVICE_PROVIDER, cookie["name"],
+                                             cookie["path"], cookie["content"])
+        self._SPConnection.addcookie(self.cookies["shibsession"])
 
-        # Authorize
-        path = "/sso/shibboleth2/sp/feide-idp"
-        header = {
-            "Accept" : "text/html,application/xhtml+xml,appication/xml",
-        }
-        response, content = self.__SPConnection__.request(path, "GET", sp_query, header)
-        status = response.status
-        if status != 200:
-            print("Exception in Shibboleth authorization (SP): %s (%s)" %
-                  (status, response.reason))
-            exit(1)
-        
-        #TODO: Authorization failed ...
-        print content
+
 
 if __name__ == "__main__":
     cli = Fronter()
