@@ -1,4 +1,5 @@
-import re
+import os, re
+from datetime import datetime
 from collections import OrderedDict
 from lxml import html
 
@@ -42,6 +43,9 @@ class Deltakere(Tool):
             self.email = email
             self.label = label.lower()
 
+        def __str__(self):
+            return '%-40s %-40s %s' % (self.name, self.email, self.label)
+
 
     def __init__(self, client, url):
 
@@ -69,7 +73,7 @@ class Deltakere(Tool):
     def print_members(self):
 
         for idx, member in enumerate(self.members):
-            print('[%-3i] %-40s %-40s %s' % (idx, member.name, member.email, member.label))
+            print('[%-3i] %s' % (idx, memeber))
 
 
     def mailto(self, select):
@@ -107,11 +111,15 @@ class Rapportinnlevering(Tool):
 
     class Delivery:
 
-        def __init__(self, name, fileurl, status, filesize):
-            self.name = name
+        def __init__(self, firstname, lastname, fileurl, date):
+            self.firstname = firstname
+            self.lastname = lastname
             self.fileurl = fileurl
-            self.status = status
-            self.filesize = filesize
+            self.date = date.strftime('%Y-%m-%d') if date else None
+
+        def __str__(self):
+            return '%-15s %s, %s' % (self.date, self.lastname, self.firstname)
+
 
     def __init__(self, client, url):
 
@@ -120,11 +128,11 @@ class Rapportinnlevering(Tool):
         self.assignments = []
         self.get_assignments(url)
 
-        self.actions['pa']  = Tool.Action('pa', self.print_assignments, '', 'print assignments')
+        self.actions['pa'] = Tool.Action('pa', self.print_assignments, '', 'print assignments')
         self.actions['sa'] = Tool.Action('sa', self.select_assignment, '<index>', 'select an assignment')
-        self.actions['pd']  = Tool.Action('pd', self.print_deliveries, '', 'print deliveries')
+        self.actions['pd'] = Tool.Action('pd', self.print_deliveries, '', 'print deliveries')
         self.actions['da'] = Tool.Action('da', self.download_all, '', 'download all deliveries')
-        self.actions['di'] = Tool.Action('d', self.download, '<index>', 'download a delivery')
+        self.actions['d']  = Tool.Action('d', self.download, '<index>', 'download a delivery')
         
 
     def get_assignments(self, url):
@@ -144,6 +152,7 @@ class Rapportinnlevering(Tool):
         for idx, assignment in enumerate(self.assignments):
             print('[%-3i] %s' % (idx, assignment[0]))
 
+
     def select_assignment(self, idx):
 
         self.deliveries = []
@@ -151,24 +160,73 @@ class Rapportinnlevering(Tool):
         tree = html.fromstring(response.read())
 
         name = tree.xpath('//tr/td[2]/label')
-        fileurl = tree.xpath('//tr/td[3]/a[@class="black-link"]')
+        url = tree.xpath('//tr/td[3]')
         status = tree.xpath('//tr/td[4]/label')
-        filesize = tree.xpath('//tr/td[6]/label')
-        for n, fu, s, fs in zip(name, fileurl, status, filesize):
-            self.deliveries.append(Delivery(n.text, fu.get('href', s.text, fs.text)))
+
+        for n, a, s in zip(name, url, status):
+
+            first = n.text.strip()
+            last = n.getchildren()[0].text.strip()
+
+            date = None
+            try:
+                date = datetime.strptime(s.text.strip(),'%Y-%m-%d')
+                a = a.xpath('a[@class=""]')[0].get('href').strip()
+            except ValueError:
+                a = None
+
+            self.deliveries.append( Rapportinnlevering.Delivery(first, last, a, date) )
+
 
     def print_deliveries(self):
 
         try:
             for idx, delivery in enumerate(self.deliveries):
-                print('[%-3i] %-20s %s' % (idx, delivery.status, delivery.name))
+                print('[%-3i] %s' % (idx, delivery))
                   
         except AttributeError:
             print(' !! you must select an assignment first')
 
 
-    def download(self, idx):
-        pass
+    def download(self, idx, folder = None):
+
+        d = self.deliveries[int(idx)]
+
+        if not folder:
+            folder = self.get_folder()
+            
+        fileurl = d.fileurl
+        if not fileurl:
+            return
+
+        basename = os.path.basename(fileurl)
+        fname = os.path.join(folder, '%s_%s_%s' % (d.lastname, d.firstname, basename))
+        with open(fname, 'wb') as f:
+            f.write(self.opener.open(Fronter.ROOT + fileurl).read())
+        print(' * %s' % fname)
+
 
     def download_all(self):
-        pass
+        
+        folder = self.get_folder()
+        for idx in range(len(self.deliveries)):
+            self.download(idx, folder)
+
+
+    def get_folder(self):
+
+        folder = os.getcwd()
+        userinput = raw_input('> folder (%s) : ' % folder)
+        folder = userinput if userinput else folder
+        
+        try:
+            try:
+                os.mkdir(folder)
+            except OSError as oe:
+                assert(oe.errno == 17)
+            assert(os.access(folder, os.W_OK))
+        except AssertionError:
+            print(' !! failed to create dir')
+            raise EOFError
+
+        return folder

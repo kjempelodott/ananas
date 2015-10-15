@@ -20,6 +20,7 @@ class Fronter(object):
             self.tools = []
 
 
+    ROOT = 'https://fronter.com/'
     TARGET = 'https://fronter.com/uio/'
 
     _imp = ('Deltakere', 'Rapportinnlevering')
@@ -201,8 +202,8 @@ def main():
                     tool = client.select_tool(idx)
                     print('')
                     loop(tool)
-                except ValueError:
-                    print(' !! integer argument required')
+                # except ValueError:
+                #     print(' !! integer argument required')
                 except IndexError:
                     print(' !! index out of range')
                 except EOFError:
