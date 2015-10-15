@@ -152,23 +152,23 @@ def loop(tool):
 
     if not tool:
         return
-    tool.print_actions()
+    tool.print_commands()
 
     while True:
         try:
-            action = input('> ').strip()
-            if not action:
+            command = input('> ').strip()
+            if not command:
                 continue
             arg = []
             try:
-                action, arg = action.split()
+                command, arg = command.split()
                 arg = [arg]
             except:
                 pass
-            tool.actions[action](*arg)
+            tool.commands[command](*arg)
         except KeyError:
-            print(' !! invalid action')
-            tool.print_actions()
+            print(' !! invalid command')
+            tool.print_commands()
         except IndexError:
             print(' !! index out of range')
         except (ValueError, TypeError):

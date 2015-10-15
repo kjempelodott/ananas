@@ -14,7 +14,7 @@ if sys.version_info[0] == 2:
 
 class Tool(object):
 
-    class Action:
+    class Command:
 
         def __init__(self, cmd, function, argstr, desc):
             self.cmd = cmd
@@ -29,16 +29,16 @@ class Tool(object):
             return '%-20s %s' % (('%-4s %s') % (self.cmd, self.argstr), self.desc)
 
     def __init__(self):
-        self.actions = OrderedDict()
-        self.actions['h'] = Tool.Action('h', self.print_actions, '', 'print actions')
+        self.commands = OrderedDict()
+        self.commands['h'] = Tool.Command('h', self.print_commands, '', 'print commands')
 
     def __str__(self):
         return self.__class__.__name__
 
-    def print_actions(self):
-        print('%s actions:' % str(self))
+    def print_commands(self):
+        print('%s commands:' % str(self))
         print('return <Ctrl-D>')
-        print('\n'.join(str(a) for a in self.actions.values()))
+        print('\n'.join(str(a) for a in self.commands.values()))
 
 
 
@@ -66,9 +66,9 @@ class Members(Tool):
         self.members = []
         self.get_members(url)
 
-        self.actions['ls']  = Tool.Action('ls', self.print_members, '', 'list members')
-        self.actions['mail'] = \
-            Tool.Action('mail', self.mailto, '<index/label>', 'send mail to a (group of) member(s)')
+        self.commands['ls']  = Tool.Command('ls', self.print_members, '', 'list members')
+        self.commands['mail'] = \
+            Tool.Command('mail', self.mailto, '<index/label>', 'send mail to a (group of) member(s)')
 
 
     def get_members(self, url):
@@ -157,10 +157,10 @@ class FileTree(Tool):
         self.opener = client.opener
         self.init_tree(url)
 
-        self.actions['ls'] = Tool.Action('ls', self.print_content, '', 'list content of current dir')
-        self.actions['cd'] = Tool.Action('cd', self.goto_idx, '<index/..>', 'change dir')
-        self.actions['get#'] = Tool.Action('get#', self.download_all, '', 'download all files')
-        self.actions['get']  = Tool.Action('get', self.download, '<index>', 'download a file')
+        self.commands['ls'] = Tool.Command('ls', self.print_content, '', 'list content of current dir')
+        self.commands['cd'] = Tool.Command('cd', self.goto_idx, '<index/..>', 'change dir')
+        self.commands['get#'] = Tool.Command('get#', self.download_all, '', 'download all files')
+        self.commands['get']  = Tool.Command('get', self.download, '<index>', 'download a file')
         
 
     def init_tree(self, url):
