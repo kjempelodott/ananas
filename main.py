@@ -2,6 +2,8 @@
 
 import re, sys
 from collections import OrderedDict
+from getpass import getuser, getpass
+from lxml import html
 
 if sys.version_info[0] == 2:
     from urllib2 import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
@@ -10,9 +12,6 @@ if sys.version_info[0] == 2:
 else: # Python3
     from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib.parse import urlencode
-
-from getpass import getuser, getpass
-from lxml import html
 
 from tools import *
 
@@ -30,7 +29,10 @@ class Fronter(object):
     ROOT = 'https://fronter.com'
     TARGET = 'https://fronter.com/uio/'
 
-    _imp = ('Deltakere', 'Rapportinnlevering')
+    _imp = {
+         3 : 'FileTree',
+        18 : 'Members', 
+    }
 
     def __init__(self):
 
@@ -83,8 +85,8 @@ class Fronter(object):
     
         url = Fronter.TARGET + '/adm/projects.phtml'
         response = self.opener.open(url)
-        tree = html.fromstring(response.read())
-        rooms = tree.xpath('//a[@class="black-link"]')
+        xml = html.fromstring(response.read())
+        rooms = xml.xpath('//a[@class="black-link"]')
         self.rooms = [ Fronter.Room( room.text.strip(), int(room.get('href').split('=')[-1]) )
                        for room in rooms ]
 
@@ -99,7 +101,7 @@ class Fronter(object):
 
 
     def get_tools(self):
-
+        
         try:
             room = self.rooms[self.roomid]  
             # If we don't do this, we just get the 'toolbar' at the top
@@ -108,13 +110,15 @@ class Fronter(object):
             # Read the 'toolbar' on the right hand side
             url = Fronter.TARGET + '/navbar.phtml?goto_prjid=%i' % room.id
             response = self.opener.open(url)
-            tree = html.fromstring(response.read())
-            tools = tree.xpath('//a[@class="room-tool"]')
+            xml = html.fromstring(response.read())
+            tools = xml.xpath('//a[@class="room-tool"]')
 
             for tool in tools:
                 title = tool.xpath('span[@class="tool-title"]')[0].text
-                if title in Fronter._imp:
-                    room.tools.append( [ title, tool.get('href') ] )
+                href = tool.get('href')
+                toolid = int(re.findall('toolid=([0-9]+)', href)[0])
+                if toolid in Fronter._imp:
+                    room.tools.append( [ title, Fronter._imp[toolid], href ] )
 
         except AttributeError:
             print(' !! you must select a room first')
@@ -124,9 +128,9 @@ class Fronter(object):
 
         tool = self.rooms[self.roomid].tools[idx]
         print(' * %s' % tool[0])
-        if type(tool[1]) is str:
-            tool[1] = globals()[tool[0]](self, Fronter.TARGET + tool[1])
-        return tool[1]
+        if type(tool[2]) is str:
+            tool[2] = globals()[tool[1]](self, Fronter.TARGET + tool[2])
+        return tool[2]
 
 
     def print_rooms(self):
