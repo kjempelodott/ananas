@@ -65,8 +65,8 @@ class Fronter(object):
         # Add username and password
         user = getuser()
         userinput = input('Username: (%s) ' % user)
-        payload['feidename'] = userinput if userinput else user
-        payload['password'] = getpass()
+        self.__user__ = payload['feidename'] = userinput if userinput else user
+        self.__secret__ = payload['password'] = getpass()
         data = urlencode(payload).encode('ascii')
         response = self.opener.open(response.url, data)
         
@@ -178,7 +178,7 @@ def loop(tool):
 
 client = None
 
-def main():
+def start_shell():
 
     try:
         global client
@@ -228,4 +228,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    start_shell()

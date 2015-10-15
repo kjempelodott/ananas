@@ -8,7 +8,7 @@ Fronter is a teaching platform, and I don't like it. I like Python.
 * Select a room
 * Select a tool ('Deltakere' or 'Rapportinnlevering')
 * Deltakere
-  * Send mail (not implemented yet)
+  * Send mail
 * Rapportinnlevering
   * Download files
   * Upload comments and grades (not implemented yet)

@@ -3,6 +3,7 @@ from datetime import datetime
 from collections import OrderedDict
 from shutil import copyfileobj
 from lxml import html
+from plugins import Mailserver
 
 from main import Fronter
 
@@ -55,6 +56,7 @@ class Deltakere(Tool):
     def __init__(self, client, url):
 
         super(Deltakere, self).__init__()
+        self.mailserver = Mailserver(client.__user__, client.__secret__)
         self.opener = client.opener
         self.members = []
         self.get_members(url)
@@ -78,7 +80,7 @@ class Deltakere(Tool):
     def print_members(self):
 
         for idx, member in enumerate(self.members):
-            print('[%-3i] %s' % (idx, memeber))
+            print('[%-3i] %s' % (idx, member))
 
 
     def mailto(self, select):
@@ -94,21 +96,7 @@ class Deltakere(Tool):
         for member in who:
             print(' * %s' % member.name)
 
-        print('> write a message (end with Ctrl-D):')
-        print('"""')
-        message = ''
-        while True:
-            try:
-                message += input('') + '\n'
-            except EOFError:
-                break
-        print('"""')
-
-        yn = ''
-        while yn not in ('y', 'n'):
-            yn = input('> send this message? (y/n) ')
-        if yn == 'y':
-            print(' ... sending ... ')
+        self.mailserver.sendmail(who)
 
 
 class Rapportinnlevering(Tool):
