@@ -1,6 +1,7 @@
 import os, re
 from datetime import datetime
 from collections import OrderedDict
+from shutil import copyfileobj
 from lxml import html
 
 from main import Fronter
@@ -200,9 +201,9 @@ class Rapportinnlevering(Tool):
             return
 
         basename = os.path.basename(fileurl)
-        fname = os.path.join(folder, '%s_%s_%s' % (d.lastname, d.firstname, basename))
-        with open(fname, 'wb') as f:
-            f.write(self.opener.open(Fronter.ROOT + fileurl).read())
+        fname = os.path.join(folder, '%s_%s' % (d.lastname, basename))
+        with open(fname, 'wb') as local:
+            copyfileobj(self.opener.open(Fronter.ROOT + fileurl), local)
         print(' * %s' % fname)
 
 
@@ -216,7 +217,7 @@ class Rapportinnlevering(Tool):
     def get_folder(self):
 
         folder = os.getcwd()
-        userinput = raw_input('> folder (%s) : ' % folder)
+        userinput = raw_input('> select folder (%s) : ' % folder)
         folder = userinput if userinput else folder
         
         try:

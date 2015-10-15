@@ -20,7 +20,7 @@ class Fronter(object):
             self.tools = []
 
 
-    ROOT = 'https://fronter.com/'
+    ROOT = 'https://fronter.com'
     TARGET = 'https://fronter.com/uio/'
 
     _imp = ('Deltakere', 'Rapportinnlevering')
@@ -31,6 +31,7 @@ class Fronter(object):
         self.opener = build_opener(HTTPRedirectHandler, self.cookie_jar)
         self.rooms = {}
         self.login()
+
 
     def login(self):
 
@@ -68,7 +69,7 @@ class Fronter(object):
         url = re.findall('action="(.+?)"', content)[0]
         payload = dict(re.findall('name="(\w+)" value="(.+?)"', content))
         data = urlencode(payload).encode('ascii')
-        response = self.opener.open(url, data)
+        self.opener.open(url, data)
        
  
     def get_rooms(self):
@@ -202,8 +203,8 @@ def main():
                     tool = client.select_tool(idx)
                     print('')
                     loop(tool)
-                # except ValueError:
-                #     print(' !! integer argument required')
+                except ValueError:
+                    print(' !! integer argument required')
                 except IndexError:
                     print(' !! index out of range')
                 except EOFError:

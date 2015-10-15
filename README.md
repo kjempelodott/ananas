@@ -1,12 +1,14 @@
-## Fronter client in Python
+## Fronter shell in Python
 
 Fronter is a teaching platform, and I don't like it. I like Python.
 
-Fronter uses the Shibboleth single sign-on (SSO) system.
+### Stuff you can do
 
-### Goals
-
-* First of all, login ...
-* Navigate around
-* Automate download of deliveries
-* Automate uploading of grades and feedback
+* Login (!)
+* Select a room
+* Select a tool ('Deltakere' or 'Rapportinnlevering')
+* Deltakere
+  * Send mail (not implemented yet)
+* Rapportinnlevering
+  * Download files
+  * Upload comments and grades (not implemented yet)
