@@ -66,9 +66,9 @@ class Members(Tool):
         self.members = []
         self.get_members(url)
 
-        self.actions['p']  = Tool.Action('p', self.print_members, '', 'print members')
-        self.actions['mt'] = \
-            Tool.Action('mt', self.mailto, '<index/label>', 'send mail to a (group of) member(s)')
+        self.actions['ls']  = Tool.Action('ls', self.print_members, '', 'list members')
+        self.actions['mail'] = \
+            Tool.Action('mail', self.mailto, '<index/label>', 'send mail to a (group of) member(s)')
 
 
     def get_members(self, url):
@@ -132,7 +132,7 @@ class FileTree(Tool):
             return self.__unicode__()
 
         def __unicode__(self):
-            return '%s' % (self.title)
+            return '  %s' % (self.title)
 
 
     class Delivery(object):
@@ -157,25 +157,24 @@ class FileTree(Tool):
         self.opener = client.opener
         self.init_tree(url)
 
-        self.actions['p'] = Tool.Action('p', self.print_content, '', 'print content of current dir')
-        self.actions['gt'] = Tool.Action('gt', self.goto_idx, '<index>', 'goto dir (up: -1)')
-        self.actions['da'] = Tool.Action('da', self.download_all, '', 'download all files')
-        self.actions['d']  = Tool.Action('d', self.download, '<index>', 'download a file')
+        self.actions['ls'] = Tool.Action('ls', self.print_content, '', 'list content of current dir')
+        self.actions['cd'] = Tool.Action('cd', self.goto_idx, '<index/..>', 'change dir')
+        self.actions['get#'] = Tool.Action('get#', self.download_all, '', 'download all files')
+        self.actions['get']  = Tool.Action('get', self.download, '<index>', 'download a file')
         
 
     def init_tree(self, url):
 
         self.__trees__ = {}
         response = self.opener.open(url)
-        treeid = re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0]
-        self.goto_branch(int(treeid))
+        self._current = int(re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0])
+        self.goto_branch(self._current)
     
 
-    def goto_branch(self, parent, treeid = None):
+    def goto_branch(self, treeid):
 
-        treeid = treeid if treeid else parent
         if treeid in self.__trees__:
-            self._current = self.__trees__[treeid]
+            self._current = treeid
             return
 
         url = Fronter.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
@@ -204,7 +203,7 @@ class FileTree(Tool):
                 except ValueError:
                     a = None
 
-                leafs.append(FileTree.Delivery(first, last, a, date, parent))
+                leafs.append(FileTree.Delivery(first, last, a, date, self._current))
 
         else:
 
@@ -213,19 +212,20 @@ class FileTree(Tool):
                 href = item.get('href')
                 try:
                     tid = int(re.findall('treeid=([0-9]+)', href)[0])
-                    branches.append(FileTree.Branch(item.text, tid, parent))
+                    branches.append(FileTree.Branch(item.text, tid, self._current))
                 except:
-                    leafs.append(FileTree.Leaf(item.text, href, parent))           
+                    leafs.append(FileTree.Leaf(item.text, href, self._current))
 
         if not branches and not leafs:
             print(' !! empty dir')
         else:
-            self._current = self.__trees__[treeid] = { 'branches' : branches, 'leafs': leafs }
+            self.__trees__[treeid] = { 'branches' : branches, 'leafs': leafs }
+            self._current = treeid
 
 
     def print_content(self):
 
-        tree = self._current
+        tree = self.__trees__[self._current]
         for items in (tree['branches'], tree['leafs']):
             for idx, item in enumerate(items):
                 print('[%-3i] %s' % (idx, item))
@@ -233,27 +233,27 @@ class FileTree(Tool):
 
     def goto_idx(self, idx):
 
-        idx = int(idx)
-
-        if idx == -1:
-            children = self._current['branches'] + self._current['leafs']
+        tree = self.__trees__[self._current]
+        if idx == '..':
+            children = tree['branches'] + tree['leafs']
             if children:
                 self.goto_branch(children[-1].parent)
             # Else - an empty FileTree
             return
 
-        branches = self._current['branches']
+        idx = int(idx)
+        branches = tree['branches']
         if idx >= len(branches):
             print(' !! not a dir')
             return
         
         branch = branches[idx]
-        self.goto_branch(branch.parent, branch.treeid)
+        self.goto_branch(branch.treeid)
 
 
     def download(self, idx, folder = None):
 
-        f = self._current['leafs'][int(idx)]
+        f = self.__trees__[self._current]['leafs'][int(idx)]
 
         if not f.url: # Deliveries may have no url
             return
@@ -273,7 +273,7 @@ class FileTree(Tool):
 
     def download_all(self):
         
-        nfiles = len(self._current['leafs'])
+        nfiles = len(self.__trees__[self._current]['leafs'])
         if not nfiles:
             print(' !! no files in current dir')
             return
