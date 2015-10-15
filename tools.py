@@ -1,10 +1,14 @@
-import os, re
+import os, sys, re
 from datetime import datetime
 from collections import OrderedDict
 from shutil import copyfileobj
 from lxml import html
 
 from main import Fronter
+
+if sys.version_info[0] == 2:
+    input = raw_input
+
 
 class Tool(object):
 
@@ -32,7 +36,7 @@ class Tool(object):
     def print_actions(self):
         print('%s actions:' % str(self))
         print('return <Ctrl-D>')
-        print('\n'.join(str(a) for a in self.actions.itervalues()))
+        print('\n'.join(str(a) for a in self.actions.values()))
 
 
 class Deltakere(Tool):
@@ -83,7 +87,6 @@ class Deltakere(Tool):
         try:
             who = [self.members[int(select)]]
         except ValueError:
-            print select
             who = [member for member in self.members if member.label == select]
             if not who:
                 raise ValueError
@@ -96,14 +99,14 @@ class Deltakere(Tool):
         message = ''
         while True:
             try:
-                message += raw_input('') + '\n'
+                message += input('') + '\n'
             except EOFError:
                 break
         print('"""')
 
         yn = ''
         while yn not in ('y', 'n'):
-            yn = raw_input('> send this message? (y/n) ')
+            yn = input('> send this message? (y/n) ')
         if yn == 'y':
             print(' ... sending ... ')
 
@@ -139,7 +142,7 @@ class Rapportinnlevering(Tool):
     def get_assignments(self, url):
 
         response = self.opener.open(url)
-        treeid = re.findall('root_node_id=([0-9]+)', response.read())[0]
+        treeid = re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0]
         url = Fronter.TARGET + '/links/structureprops.phtml?treeid=' + treeid
 
         response = self.opener.open(url)
@@ -217,7 +220,7 @@ class Rapportinnlevering(Tool):
     def get_folder(self):
 
         folder = os.getcwd()
-        userinput = raw_input('> select folder (%s) : ' % folder)
+        userinput = input('> select folder (%s) : ' % folder)
         folder = userinput if userinput else folder
         
         try:

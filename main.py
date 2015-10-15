@@ -2,8 +2,15 @@
 
 import re, sys
 from collections import OrderedDict
-from urllib2 import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
-from urllib import urlencode
+
+if sys.version_info[0] == 2:
+    from urllib2 import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
+    from urllib import urlencode
+    input = raw_input
+else: # Python3
+    from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
+    from urllib.parse import urlencode
+
 from getpass import getuser, getpass
 from lxml import html
 
@@ -54,10 +61,10 @@ class Fronter(object):
         #         IDP -> SP
         #
         # Fetch hidden fields from content
-        payload = dict(re.findall('name="(\w+)" value="(.+?)"', response.read()))
+        payload = dict(re.findall('name="(\w+)" value="(.+?)"', response.read().decode('utf-8')))
         # Add username and password
         user = getuser()
-        userinput = raw_input('Username: (%s) ' % user)
+        userinput = input('Username: (%s) ' % user)
         payload['feidename'] = userinput if userinput else user
         payload['password'] = getpass()
         data = urlencode(payload).encode('ascii')
@@ -65,7 +72,7 @@ class Fronter(object):
         
         
         # Step 4: Submit SAMLResponse
-        content = response.read()
+        content = response.read().decode('utf-8')
         url = re.findall('action="(.+?)"', content)[0]
         payload = dict(re.findall('name="(\w+)" value="(.+?)"', content))
         data = urlencode(payload).encode('ascii')
@@ -145,7 +152,7 @@ def loop(tool):
 
     while True:
         try:
-            action = raw_input('> ').strip()
+            action = input('> ').strip()
             if not action:
                 continue
             arg = []
@@ -190,7 +197,7 @@ def main():
             print('')
             client.print_rooms()
 
-            idx = int(raw_input('> select a room <index> : ').strip())
+            idx = int(input('> select a room <index> : ').strip())
             client.select_room(idx)
 
             while True:
@@ -199,7 +206,7 @@ def main():
                 client.print_tools()
 
                 try:
-                    idx = int(raw_input('> select a tool <index> : ').strip())
+                    idx = int(input('> select a tool <index> : ').strip())
                     tool = client.select_tool(idx)
                     print('')
                     loop(tool)
