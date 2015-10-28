@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import re, sys
-from collections import OrderedDict
+from collections import namedtuple
 from getpass import getuser, getpass
 from lxml import html
 
@@ -18,13 +18,7 @@ from tools import *
 
 class Fronter(object):
 
-    class Room(object):
-
-        def __init__(self, name, roomid):
-            self.name = name
-            self.id = roomid
-            self.tools = []
-
+    Room = namedtuple('Room', ['name', 'id', 'tools'])
 
     ROOT = 'https://fronter.com'
     TARGET = 'https://fronter.com/uio/'
@@ -38,7 +32,7 @@ class Fronter(object):
 
         self.cookie_jar = HTTPCookieProcessor()
         self.opener = build_opener(HTTPRedirectHandler, self.cookie_jar)
-        self.rooms = {}
+        self.rooms = []
         self.login()
 
 
@@ -87,8 +81,9 @@ class Fronter(object):
         response = self.opener.open(url)
         xml = html.fromstring(response.read())
         rooms = xml.xpath('//a[@class="black-link"]')
-        self.rooms = [ Fronter.Room( room.text.strip(), int(room.get('href').split('=')[-1]) )
-                       for room in rooms ]
+        self.rooms = [ Fronter.Room(name  = room.text.strip(), 
+                                    id    = int(room.get('href').split('=')[-1]), 
+                                    tools = []) for room in rooms ]
 
 
     def select_room(self, idx):
