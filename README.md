@@ -12,5 +12,6 @@ Fronter is a teaching platform, and I don't like it. I like Python.
 * FileTree
   * Navigate
   * Download files
+  * Upload evaluation, grade and comments
+  * Delete files (not implemented yet)
   * Upload files (not implemented yet)
-  * Upload comments and grades to deliveries (not implemented yet)
