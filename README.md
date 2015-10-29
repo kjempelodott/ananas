@@ -8,7 +8,7 @@ Fronter is a teaching platform, and I don't like it. I like Python.
 * Select a room
 * Select a tool (Members or FileTree)
 * Members
-  * Send mail
+  * Send mail to a member or a group of members
 * FileTree
   * Navigate
   * Download files

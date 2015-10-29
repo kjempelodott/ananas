@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import re, sys
 from collections import namedtuple
 from getpass import getuser, getpass
@@ -13,15 +11,12 @@ else: # Python3
     from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib.parse import urlencode
 
-from tools import *
+from tools import Members, FileTree
 
 
 class Fronter(object):
 
     Room = namedtuple('Room', ['name', 'id', 'tools'])
-
-    ROOT = 'https://fronter.com'
-    TARGET = 'https://fronter.com/uio/'
 
     _imp = {
          3 : 'FileTree',
@@ -29,6 +24,9 @@ class Fronter(object):
     }
 
     def __init__(self):
+
+        self.ROOT = 'https://fronter.com'
+        self.TARGET = 'https://fronter.com/uio/'
 
         self.cookie_jar = HTTPCookieProcessor()
         self.opener = build_opener(HTTPRedirectHandler, self.cookie_jar)
@@ -45,7 +43,7 @@ class Fronter(object):
         #         IDP requests SAML cookie
         #         Cookie!
         #
-        response = self.opener.open(Fronter.TARGET)
+        response = self.opener.open(self.TARGET)
 
 
         # Step 2: Choose affiliation (UiO)
@@ -77,13 +75,13 @@ class Fronter(object):
  
     def get_rooms(self):
     
-        url = Fronter.TARGET + '/adm/projects.phtml'
+        url = self.TARGET + '/adm/projects.phtml'
         response = self.opener.open(url)
         xml = html.fromstring(response.read())
         rooms = xml.xpath('//a[@class="black-link"]')
-        self.rooms = [ Fronter.Room(name  = room.text.strip(), 
-                                    id    = int(room.get('href').split('=')[-1]), 
-                                    tools = []) for room in rooms ]
+        self.rooms = [ self.Room(name  = room.text.strip(), 
+                                 id    = int(room.get('href').split('=')[-1]), 
+                                 tools = []) for room in rooms ]
 
 
     def select_room(self, idx):
@@ -100,10 +98,10 @@ class Fronter(object):
         try:
             room = self.rooms[self.roomid]  
             # If we don't do this, we just get the 'toolbar' at the top
-            url = Fronter.TARGET + '/contentframeset.phtml?goto_prjid=%i' % room.id
+            url = self.TARGET + '/contentframeset.phtml?goto_prjid=%i' % room.id
             self.opener.open(url)
             # Read the 'toolbar' on the right hand side
-            url = Fronter.TARGET + '/navbar.phtml?goto_prjid=%i' % room.id
+            url = self.TARGET + '/navbar.phtml?goto_prjid=%i' % room.id
             response = self.opener.open(url)
             xml = html.fromstring(response.read())
             tools = xml.xpath('//a[@class="room-tool"]')
@@ -124,107 +122,14 @@ class Fronter(object):
         tool = self.rooms[self.roomid].tools[idx]
         print(' * %s' % tool[0])
         if type(tool[2]) is str:
-            tool[2] = globals()[tool[1]](self, Fronter.TARGET + tool[2])
+            tool[2] = globals()[tool[1]](self, self.TARGET + tool[2])
         return tool[2]
 
 
     def print_rooms(self):
-
-        print('exit   <Ctrl-C>')
-        print('return <Ctrl-D>')
         for idx, room in enumerate(self.rooms):
             print('[%-3i] %s' % (idx, room.name))
 
     def print_tools(self):
-
-        print('exit   <Ctrl-C>')
-        print('return <Ctrl-D>')
         for idx, tool in enumerate(self.rooms[self.roomid].tools):
             print('[%-3i] %s' % (idx, tool[0]))
-
-
-def loop(tool):
-
-    if not tool:
-        return
-    tool.print_commands()
-
-    while True:
-        try:
-            command = input('> ').strip()
-            if not command:
-                continue
-            arg = []
-            try:
-                command, arg = command.split()
-                arg = [arg]
-            except:
-                pass
-            tool.commands[command](*arg)
-        except KeyError:
-            print(' !! invalid command')
-            tool.print_commands()
-        except IndexError:
-            print(' !! index out of range')
-        except (ValueError, TypeError):
-            print(' !! invalid argument')
-        except EOFError:
-            print('')
-            break
-        except KeyboardInterrupt:
-            print('')
-
-
-client = None
-
-def start_shell():
-
-    try:
-        global client
-        client = Fronter()
-    except ValueError:
-        print('Wrong username/password')
-        sys.exit(0)
-    except (KeyboardInterrupt, EOFError):
-        print('\n> exit')
-        sys.exit(0)
-        
-    client.get_rooms() 
-
-    while True:        
-        try:
-            print('')
-            client.print_rooms()
-
-            idx = int(input('> select a room <index> : ').strip())
-            client.select_room(idx)
-
-            while True:
-
-                print('')
-                client.print_tools()
-
-                try:
-                    idx = int(input('> select a tool <index> : ').strip())
-                    tool = client.select_tool(idx)
-                    print('')
-                    loop(tool)
-                except ValueError:
-                    print(' !! integer argument required')
-                except IndexError:
-                    print(' !! index out of range')
-                except EOFError:
-                    print('')
-                    break
-
-        except ValueError:
-            print(' !! integer argument required')
-        except IndexError:
-            print(' !! index out of range')
-        except (KeyboardInterrupt, EOFError):
-            print('\n> exit')
-            break
-
-
-if __name__ == '__main__':
-    start_shell()

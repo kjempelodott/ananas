@@ -1,0 +1,104 @@
+#!/bin/sh
+''':'
+if which ipython 2>&1 > /dev/null; then
+   exec ipython "$0" "$@"
+else
+   exec python "$0" "$@"
+fi
+'''
+
+import sys
+
+if sys.version_info[0] == 2:
+    input = raw_input
+
+from fronter import Fronter
+
+
+def loop(instr):
+    def magic():
+        while True:
+            try:
+                instr()
+            except KeyError:
+                print(' !! invalid command')
+            except IndexError:
+                print(' !! index out of range')
+            except (ValueError, TypeError):
+                print(' !! invalid argument')
+            except EOFError:
+                print('')
+                break
+            except KeyboardInterrupt:
+                print('')
+    return magic
+
+
+def enter_loop(tool):
+
+    if not tool:
+        return
+    tool.print_commands()
+
+    @loop
+    def do():
+        command = input('> ').strip()
+        if not command:
+            return
+
+        arg = []
+        try:
+            command, arg = command.split()
+            arg = [arg]
+        except:
+            pass
+
+        tool.commands[command](*arg)
+
+    do()
+
+
+client = None
+
+def start_shell():
+
+    try:
+        global client
+        client = Fronter()
+    except ValueError:
+        print('Wrong username/password')
+        sys.exit(0)
+    except (KeyboardInterrupt, EOFError):
+        print('\n> exit')
+        sys.exit(0)
+        
+    client.get_rooms() 
+
+    @loop
+    def select_room():
+        print('\nreturn <Ctrl-D>')
+        client.print_rooms()
+
+        idx = int(input('> select a room <index> : ').strip())
+        client.select_room(idx)
+
+        @loop
+        def select_tool():
+            print('\nreturn <Ctrl-D>')
+            client.print_tools()
+
+            idx = int(input('> select a tool <index> : ').strip())
+            tool = client.select_tool(idx)
+            print('')
+
+            enter_loop(tool)
+
+        select_tool()
+
+    select_room()
+
+    print('> exit')            
+
+
+if __name__ == '__main__':
+    start_shell()

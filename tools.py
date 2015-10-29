@@ -5,8 +5,6 @@ from shutil import copyfileobj
 from lxml import html
 from plugins import Mailserver
 
-from pyshell import Fronter
-
 if sys.version_info[0] == 2:
     from urllib import urlencode
     input = raw_input
@@ -166,20 +164,27 @@ class FileTree(Tool):
 
     def __init__(self, client, url):
 
+        self.TARGET = client.TARGET
+        self.ROOT = client.ROOT
+
         super(FileTree, self).__init__()
         self.opener = client.opener
+
         self.init_tree(url)
 
+        # Navigation
         self.commands['ls'] = Tool.Command('ls', self.print_content, '', 'list content of current dir')
         self.commands['cd'] = Tool.Command('cd', self.goto_idx, '<index/..>', 'change dir')
-
+        # Download
         self.commands['get#'] = Tool.Command('get#', self.download_all, '', 
                                              'download all files in current dir')
         self.commands['get']  = Tool.Command('get', self.download, '<index>', 'download a file')
-
+        # Upload
+        self.commands['put#'] = Tool.Command('put', self.upload, '', 'upload file(s)')
+        # Delete
         self.commands['del#'] = Tool.Command('del#', self.delete_all, '', 'delete all in current dir')
         self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete a file/dir')
-
+        # Evaluate
         self.commands['comment#'] = Tool.Command('comment#', self.comment_all, '', 
                                                  'upload comments from xml')
         self.commands['comment']  = Tool.Command('comment', self.comment, '<index>', 'upload comment')
@@ -199,7 +204,7 @@ class FileTree(Tool):
             self._current = treeid
             return
 
-        url = Fronter.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
+        url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
         response = self.opener.open(url)
         data = response.read().decode('utf-8')
         xml = html.fromstring(data)
@@ -293,6 +298,10 @@ class FileTree(Tool):
         self.goto_branch(branch.treeid)
 
 
+    def upload(self, files = None):
+        pass
+
+
     def download(self, idx, folder = None):
 
         f = self.__trees__[self._current]['leafs'][int(idx)]
@@ -309,7 +318,7 @@ class FileTree(Tool):
         fname = os.path.join(folder, fname)
 
         with open(fname, 'wb') as local:
-            copyfileobj(self.opener.open(Fronter.ROOT + f.url), local)
+            copyfileobj(self.opener.open(self.ROOT + f.url), local)
         print(' * %s' % fname)
 
 
@@ -342,7 +351,7 @@ class FileTree(Tool):
             print(' !! commenting not available (%s)' % f.title)
             return
 
-        response = self.opener.open(Fronter.TARGET + '/links/' + f.menu['new_comment'].url)
+        response = self.opener.open(self.TARGET + '/links/' + f.menu['new_comment'].url)
         xml = html.fromstring(response.read())
         evals = [(item.getnext().text, item.get('value'))
                  for item in xml.xpath('//input[@type="radio"]')]
