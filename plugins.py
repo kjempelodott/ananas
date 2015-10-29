@@ -1,4 +1,4 @@
-import sys
+import sys, base64
 import smtplib
 
 if sys.version_info[0] == 2:
@@ -8,7 +8,7 @@ class Mailserver(smtplib.SMTP_SSL, object):
 
     def __init__(self, user, secret):
         super(Mailserver, self).__init__('smtp.uio.no', 465)
-        self.login(user, secret)
+        self.login(user, base64.b64decode(secret))
         self.me = user + '@mail.uio.no'
 
     def sendmail(self, recipients):

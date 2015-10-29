@@ -1,7 +1,8 @@
-import re, sys
+import re, sys, base64
 from collections import namedtuple
 from getpass import getuser, getpass
 from lxml import html
+from MultipartPostHandler import MultipartPostHandler
 
 if sys.version_info[0] == 2:
     from urllib2 import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
@@ -14,22 +15,28 @@ else: # Python3
 from tools import Members, FileTree
 
 
+class DebugSession(BaseException):
+    pass
+
 class Fronter(object):
 
     Room = namedtuple('Room', ['name', 'id', 'tools'])
-
     _imp = {
          3 : 'FileTree',
         18 : 'Members', 
     }
 
     def __init__(self):
+        
+        def DEBUG():
+            raise DebugSession
 
         self.ROOT = 'https://fronter.com'
         self.TARGET = 'https://fronter.com/uio/'
+        self.DEBUG = DEBUG
 
         self.cookie_jar = HTTPCookieProcessor()
-        self.opener = build_opener(HTTPRedirectHandler, self.cookie_jar)
+        self.opener = build_opener(HTTPRedirectHandler, MultipartPostHandler, self.cookie_jar)
         self.rooms = []
         self.login()
 
@@ -59,8 +66,10 @@ class Fronter(object):
         # Add username and password
         user = getuser()
         userinput = input('Username: (%s) ' % user)
-        self.__user__ = payload['feidename'] = userinput if userinput else user
-        self.__secret__ = payload['password'] = getpass()
+        payload['feidename'] = self.__user__ = userinput if userinput else user
+        payload['password'] = getpass()
+        # Save it for later use, but encode it just in case lasers, pirates and stupid shit
+        self.__secret__ = base64.b64encode(payload['password']) 
         data = urlencode(payload).encode('ascii')
         response = self.opener.open(response.url, data)
         
@@ -77,7 +86,7 @@ class Fronter(object):
     
         url = self.TARGET + '/adm/projects.phtml'
         response = self.opener.open(url)
-        xml = html.fromstring(response.read())
+        xml = html.fromstring(response.read().decode('utf-8'))
         rooms = xml.xpath('//a[@class="black-link"]')
         self.rooms = [ self.Room(name  = room.text.strip(), 
                                  id    = int(room.get('href').split('=')[-1]), 
@@ -88,7 +97,7 @@ class Fronter(object):
 
         room = self.rooms[idx]
         self.roomid = idx
-        print(' * %s  <id=%s>' % (room.name, room.id))
+        print(' * %s' % room.name)
         if not room.tools:
             self.get_tools()
 
@@ -103,15 +112,17 @@ class Fronter(object):
             # Read the 'toolbar' on the right hand side
             url = self.TARGET + '/navbar.phtml?goto_prjid=%i' % room.id
             response = self.opener.open(url)
-            xml = html.fromstring(response.read())
+            xml = html.fromstring(response.read().decode('utf-8'))
             tools = xml.xpath('//a[@class="room-tool"]')
 
             for tool in tools:
-                title = tool.xpath('span[@class="tool-title"]')[0].text
-                href = tool.get('href')
-                toolid = int(re.findall('toolid=([0-9]+)', href)[0])
-                if toolid in Fronter._imp:
-                    room.tools.append( [ title, Fronter._imp[toolid], href ] )
+                try:
+                    href = tool.get('href')
+                    toolid = int(re.findall('toolid=([0-9]+)', href)[0]) # IndexError
+                    title = tool.xpath('span[@class="tool-title"]')[0].text
+                    room.tools.append( [ title, Fronter._imp[toolid], href ] ) # KeyError
+                except (IndexError, KeyError):
+                    continue
 
         except AttributeError:
             print(' !! you must select a room first')

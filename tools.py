@@ -171,8 +171,8 @@ class FileTree(Tool):
         self.opener = client.opener
 
         self.init_tree(url)
-
-        # Navigation
+    
+        # Shell-like filesystem stuff
         self.commands['ls'] = Tool.Command('ls', self.print_content, '', 'list content of current dir')
         self.commands['cd'] = Tool.Command('cd', self.goto_idx, '<index/..>', 'change dir')
         # Download
@@ -180,7 +180,7 @@ class FileTree(Tool):
                                              'download all files in current dir')
         self.commands['get']  = Tool.Command('get', self.download, '<index>', 'download a file')
         # Upload
-        self.commands['put#'] = Tool.Command('put', self.upload, '', 'upload file(s)')
+        self.commands['put'] = Tool.Command('put', self.upload, '', 'upload file(s) to current dir')
         # Delete
         self.commands['del#'] = Tool.Command('del#', self.delete_all, '', 'delete all in current dir')
         self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete a file/dir')
@@ -298,8 +298,41 @@ class FileTree(Tool):
         self.goto_branch(branch.treeid)
 
 
-    def upload(self, files = None):
-        pass
+    def prepare_form(self, xml):
+
+        form = xml.xpath('//form[@name="actionform"]')[0]
+        inputs = form.xpath('input[@type="hidden"]')
+        payload = dict((i.name, i.get('value')) for i in inputs)
+
+        url = form.get('action')
+        return url, payload
+
+
+    def upload(self):
+
+        folder = os.getcwd()
+        userinput = input('> select a file or folder (%s) : ' % folder)
+        files = userinput if userinput else folder
+        
+        try:
+            assert(os.access(files, os.R_OK))
+        except AssertionError:
+            print(' !! cannot read %s' % files)
+            raise EOFError
+
+        files = [os.path.join(files, f) for f in os.listdir(files)] if os.path.isdir(files) else [files]
+        url = self.TARGET +'/links/structureprops.phtml?php_action=file&treeid=%i' % self._current
+        response = self.opener.open(url)
+
+        xml = html.fromstring(response.read())
+        url, payload = self.prepare_form(xml)
+
+        payload['do_action'] = 'file_save'
+
+        for f in files:
+            payload['file'] = open(f, 'rb')
+            self.opener.open(url, payload)
+            print(' * %s' % f)
 
 
     def download(self, idx, folder = None):
@@ -380,17 +413,13 @@ class FileTree(Tool):
             yn = input('> upload evaluation, grade and comment? (y/n) ')
 
         if yn == 'y':
-            form = xml.xpath('//form[@name="actionform"]')[0]
-            inputs = form.xpath('input[@type="hidden"]')
-            payload = dict((i.name, i.get('value')) for i in inputs)
- 
-            payload['submit_clicked']  = 1
+            url, payload = self.prepare_form(xml)
+           
             payload['do_action']       = 'comment_save'
             payload['element_comment'] = comment
             payload['grade']           = grade
             payload['aproved']         = evaluation
 
-            url = form.get('action')
             self.opener.open(url, urlencode(payload).encode('ascii'))
 
 

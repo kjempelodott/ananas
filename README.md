@@ -4,14 +4,25 @@ Fronter is a teaching platform, and I don't like it. I like Python.
 
 ### Stuff you can do
 
-* Login (!)
 * Select a room
 * Select a tool (Members or FileTree)
 * Members
   * Send mail to a member or a group of members
 * FileTree
-  * Navigate
+  * Navigate around
   * Download files
   * Upload evaluation, grade and comments
+  * Upload files
   * Delete files (not implemented yet)
-  * Upload files (not implemented yet)
+  * Make folders (not implemented yet)
+
+#### Requirements
+
+* Python >= 2.7
+* (IPython for globbing)
+* python-MultipartPostHandler
+
+#### TODO
+
+* Choose affiliation (hardcoded to uio.no)
+
