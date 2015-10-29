@@ -115,11 +115,12 @@ class FileTree(Tool):
         _imp = ('multi_delete', 'new_comment')
         Menu = namedtuple('Menu', ['name', 'url'])
 
-        def __init__(self, title, treeid, path, parent):
+        def __init__(self, title, treeid, parent = None):
             self.title = title
             self.treeid = treeid
             self.parent = parent
-            self.path = path + title + '/'
+            self.path = '/' if not parent else parent.path + title + '/'
+            self.children = { 'leafs' : [], 'branches' : [] }
             self.menu = {}
 
         def __str__(self):
@@ -198,8 +199,8 @@ class FileTree(Tool):
 
         response = self.opener.open(url)
         treeid = int(re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0])
-        root = FileTree.Branch('', treeid, '', treeid)
-        self.__trees__ = {}
+        root = FileTree.Branch('', treeid)
+        self.__trees__ = {} # Keeps all branches in memory
         self.goto_branch(root)
     
 
@@ -207,14 +208,14 @@ class FileTree(Tool):
 
         treeid = branch.treeid
         if treeid in self.__trees__:
-            self._current = treeid
+            self.cwd = branch
             return
 
         url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
         response = self.opener.open(url)
         data = response.read().decode('utf-8')
         xml = html.fromstring(data)
-        delivery_folder = bool(xml.xpath('//td/label[@for="folder_todate"]'))
+        branch.is_task = bool(xml.xpath('//td/label[@for="folder_todate"]'))
 
         branches = []
         leafs = []
@@ -222,7 +223,8 @@ class FileTree(Tool):
         menus = dict((mid, menu) for mid, menu in
                      re.findall('ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)', data))
 
-        if delivery_folder:
+        if branch.is_task:
+
             tr_odd = xml.xpath('//tr[@class="tablelist-odd"]')
             tr_even = xml.xpath('//tr[@class="tablelist-even"]')
 
@@ -243,9 +245,9 @@ class FileTree(Tool):
                         menu = menus[menu_id]
                     except ValueError:
                         url = None
-                        
-                    leafs.append(FileTree.Delivery(first, last, url, date, treeid))
-                    leafs[-1].make_menu(menu)
+
+                    branch.children['leafs'].append(FileTree.Delivery(first, last, url, date, treeid))
+                    branch.children['leafs'][-1].make_menu(menu)
 
                 except IndexError:
                     continue
@@ -261,34 +263,32 @@ class FileTree(Tool):
                 menu = menus[menu_id]
                 try:
                     tid = int(re.findall('treeid=([0-9]+)', href)[0])
-                    branches.append(FileTree.Branch(link.text, tid, branch.path, treeid))
-                    branches[-1].make_menu(menu)
+                    branch.children['branches'].append(FileTree.Branch(link.text, tid, branch))
+                    branch.children['branches'][-1].make_menu(menu)
                 except:
-                    leafs.append(FileTree.Leaf(link.text, href, treeid))
-                    leafs[-1].make_menu(menu)
+                    branch.children['leafs'].append(FileTree.Leaf(link.text, href, branch))
+                    branch.children['leafs'][-1].make_menu(menu)
 
-        self.__trees__[treeid] = { 'self': branch, 'branches' : branches, 'leafs': leafs }
-        self._current = treeid
-
+        self.cwd = self.__trees__[treeid] = branch
+        
 
     def print_content(self):
 
-        tree = self.__trees__[self._current]
-        print(tree['self'].path)
-        for items in (tree['branches'], tree['leafs']):
+        print(self.cwd.path)
+        for items in (self.cwd.children['branches'], self.cwd.children['leafs']):
             for idx, item in enumerate(items):
                 print('[%-3i] %s' % (idx, item))
         
 
     def goto_idx(self, idx):
 
-        tree = self.__trees__[self._current]
         if idx == '..':
-            self.goto_branch(self.__trees__[tree['self'].parent]['self'])
+            if self.cwd.parent:
+                self.goto_branch(self.cwd.parent)
             return
 
         idx = int(idx)
-        branches = tree['branches']
+        branches = self.cwd.children['branches']
         if idx >= len(branches):
             print(' !! not a dir')
             return
@@ -309,17 +309,15 @@ class FileTree(Tool):
     def upload(self):
 
         folder = os.getcwd()
-        userinput = input('> select a file or folder (%s) : ' % folder)
-        files = userinput if userinput else folder
+        userinput = input('> select a file (%s) : ' % folder)
         
         try:
-            assert(os.access(files, os.R_OK))
+            assert(os.access(userinput, os.R_OK))
         except AssertionError:
-            print(' !! cannot read %s' % files)
+            print(' !! cannot read %s' % userinput)
             raise EOFError
 
-        files = [os.path.join(files, f) for f in os.listdir(files)] if os.path.isdir(files) else [files]
-        url = self.TARGET +'/links/structureprops.phtml?php_action=file&treeid=%i' % self._current
+        url = self.TARGET +'/links/structureprops.phtml?php_action=file&treeid=%i' % self.cwd.treeid
         response = self.opener.open(url)
 
         xml = html.fromstring(response.read())
@@ -335,28 +333,28 @@ class FileTree(Tool):
 
     def download(self, idx, folder = None):
 
-        f = self.__trees__[self._current]['leafs'][int(idx)]
+        leaf = self.cwd.children['leafs'][int(idx)]
 
-        if not f.url: # Deliveries may have no url
-            print(' !! %s has not uploaded the assignment yet' % f.title)
+        if not leaf.url: # Assignments may have no url
+            print(' !! %s has not uploaded the assignment yet' % leaf.title)
             return
 
         if not folder:
             folder = self.get_local_folder()
 
-        fname = os.path.basename(f.url)
-        if type(f) is FileTree.Delivery:
-            fname = '%s_%s' % (f.lastname, fname)
+        fname = os.path.basename(leaf.url)
+        if self.cwd.is_task:
+            fname = '%s_%s' % (leaf.lastname, fname)
         fname = os.path.join(folder, fname)
 
         with open(fname, 'wb') as local:
-            copyfileobj(self.opener.open(self.ROOT + f.url), local)
+            copyfileobj(self.opener.open(self.ROOT + leaf.url), local)
         print(' * %s' % fname)
 
 
     def download_all(self):
         
-        nfiles = len(self.__trees__[self._current]['leafs'])
+        nfiles = len(self.cwd.children['leafs'])
         if not nfiles:
             print(' !! no files in current dir')
             return
@@ -378,7 +376,7 @@ class FileTree(Tool):
 
     def comment(self, idx, comment = '', grade = '', evaluation = '', autoyes = False):
 
-        f = self.__trees__[self._current]['leafs'][int(idx)]
+        f = self.cwd.children['leafs'][int(idx)]
         if not 'new_comment' in f.menu:
             print(' !! commenting not available (%s)' % f.title)
             return
