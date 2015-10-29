@@ -112,10 +112,11 @@ class FileTree(Tool):
         _imp = ('multi_delete', 'new_comment')
         Menu = namedtuple('Menu', ['name', 'url'])
 
-        def __init__(self, title, treeid, parent):
+        def __init__(self, title, treeid, path, parent):
             self.title = title
             self.treeid = treeid
             self.parent = parent
+            self.path = path + title + '/'
             self.menu = {}
 
         def __str__(self):
@@ -192,14 +193,16 @@ class FileTree(Tool):
 
     def init_tree(self, url):
 
-        self.__trees__ = {}
         response = self.opener.open(url)
-        self._current = int(re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0])
-        self.goto_branch(self._current)
+        treeid = int(re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0])
+        root = FileTree.Branch('', treeid, '', treeid)
+        self.__trees__ = {}
+        self.goto_branch(root)
     
 
-    def goto_branch(self, treeid):
+    def goto_branch(self, branch):
 
+        treeid = branch.treeid
         if treeid in self.__trees__:
             self._current = treeid
             return
@@ -239,7 +242,7 @@ class FileTree(Tool):
                     except ValueError:
                         url = None
                         
-                    leafs.append(FileTree.Delivery(first, last, url, date, self._current))
+                    leafs.append(FileTree.Delivery(first, last, url, date, treeid))
                     leafs[-1].make_menu(menu)
 
                 except IndexError:
@@ -256,36 +259,30 @@ class FileTree(Tool):
                 menu = menus[menu_id]
                 try:
                     tid = int(re.findall('treeid=([0-9]+)', href)[0])
-                    branches.append(FileTree.Branch(link.text, tid, self._current))
+                    branches.append(FileTree.Branch(link.text, tid, branch.path, treeid))
                     branches[-1].make_menu(menu)
                 except:
-                    leafs.append(FileTree.Leaf(link.text, href, self._current))
+                    leafs.append(FileTree.Leaf(link.text, href, treeid))
                     leafs[-1].make_menu(menu)
 
-
-        if not branches and not leafs:
-            print(' !! empty dir')
-        else:
-            self.__trees__[treeid] = { 'branches' : branches, 'leafs': leafs }
-            self._current = treeid
+        self.__trees__[treeid] = { 'self': branch, 'branches' : branches, 'leafs': leafs }
+        self._current = treeid
 
 
     def print_content(self):
 
         tree = self.__trees__[self._current]
+        print(tree['self'].path)
         for items in (tree['branches'], tree['leafs']):
             for idx, item in enumerate(items):
                 print('[%-3i] %s' % (idx, item))
-
+        
 
     def goto_idx(self, idx):
 
         tree = self.__trees__[self._current]
         if idx == '..':
-            children = tree['branches'] + tree['leafs']
-            if children:
-                self.goto_branch(children[-1].parent)
-            # Else - an empty FileTree
+            self.goto_branch(self.__trees__[tree['self'].parent]['self'])
             return
 
         idx = int(idx)
@@ -294,8 +291,7 @@ class FileTree(Tool):
             print(' !! not a dir')
             return
         
-        branch = branches[idx]
-        self.goto_branch(branch.treeid)
+        self.goto_branch(branches[idx])
 
 
     def prepare_form(self, xml):
