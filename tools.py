@@ -164,18 +164,19 @@ class FileTree(Tool):
             self.menu = {}
 
         def __unicode__(self):
-            return '%-15s %s, %s' % (self.date, self.lastname, self.firstname)
+            return '%-15s %s' % (self.date, self.title)
                 
 
     def __init__(self, client, url):
 
         self.TARGET = client.TARGET
         self.ROOT = client.ROOT
+        self.url = url
 
         super(FileTree, self).__init__()
         self.opener = client.opener
 
-        self.init_tree(url)
+        self.init_tree()
     
         # Shell-like filesystem stuff
         self.commands['ls'] = Tool.Command('ls', self.print_content, '', 'list content of current dir')
@@ -190,14 +191,17 @@ class FileTree(Tool):
         self.commands['del#'] = Tool.Command('del#', self.delete_all, '', 'delete all in current dir')
         self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete a file/dir')
         # Evaluate
-        self.commands['comment#'] = Tool.Command('comment#', self.comment_all, '', 
-                                                 'upload comments from xml')
-        self.commands['comment']  = Tool.Command('comment', self.comment, '<index>', 'upload comment')
+        self.commands['eval#'] = Tool.Command('eval#', self.evaluate_all, '', 
+                                              'upload evaluations from xml')
+        self.commands['eval']  = Tool.Command('eval', self.evaluation, '<index>', 
+                                              'read and edit evaluation')
+        # Reload
+        self.commands['reload']  = Tool.Command('reload', self.init_tree, '', 'reload (clean cache)')
+
         
-
-    def init_tree(self, url):
-
-        response = self.opener.open(url)
+    def init_tree(self):
+        
+        response = self.opener.open(self.url)
         treeid = int(re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0])
         root = FileTree.Branch('', treeid)
         self.__trees__ = {} # Keeps all branches in memory
@@ -235,7 +239,8 @@ class FileTree(Tool):
                     status = tr.xpath('td[4]/label')[0]
 
                     first = name.text.strip()
-                    last = name.getchildren()[0].text.strip()
+                    last = name.getchildren()[0].text
+                    last = '' if not last else last.strip()
 
                     date, menu = None, ''
                     try:
@@ -374,53 +379,94 @@ class FileTree(Tool):
         return
 
 
-    def comment(self, idx, comment = '', grade = '', evaluation = '', autoyes = False):
+    @staticmethod
+    def print_eval(xml, evals):
 
-        f = self.cwd.children['leafs'][int(idx)]
-        if not 'new_comment' in f.menu:
+        comment = xml.xpath('//input[@name="element_comment_hidden"]')[0]
+        if comment.value:
+            print(xml.xpath('//label[@for="element_comment"]')[0].text)
+            print('\n' + comment.value.strip() + '\n')
+
+        grade = xml.xpath('//input[@name="grade_hidden"]')[0]
+        grade_label = xml.xpath('//label[@for="grade"]')[0]
+        if grade.value:
+            print(grade_label.text + ' ' + grade.value)
+
+        eval_text = None
+        eval_span = grade.getnext().getchildren()[0].getchildren()[0]
+        if evals:
+            for evali in evals:
+                if 'checked' in evali.keys():
+                    eval_text = evali.getnext().text
+                    break
+        else:
+            eval_text = eval_span.getparent().getnext().text
+
+        if eval_text:
+            print(eval_span.text + ' ' + eval_text)
+
+
+    def evaluation(self, idx, comment = '', grade = '', evaluation = '', batch = False):
+
+        leaf = self.cwd.children['leafs'][int(idx)]
+        if not 'new_comment' in leaf.menu:
             print(' !! commenting not available (%s)' % f.title)
             return
+        
+        response = self.opener.open(self.TARGET + '/links/' + leaf.menu['new_comment'].url)
+        xml = html.fromstring(response.read().decode('utf-8'))
+        evals = xml.xpath('//input[@type="radio"]')
 
-        response = self.opener.open(self.TARGET + '/links/' + f.menu['new_comment'].url)
-        xml = html.fromstring(response.read())
-        evals = [(item.getnext().text, item.get('value'))
-                 for item in xml.xpath('//input[@type="radio"]')]
+        batch = batch and comment and grade and evaluation
 
-        if not evaluation:
-            print('')
-            for idx, evali in enumerate(evals):
-                print('[%-3i] %s' % (idx, evali[0]))
-            evaluation = evals[int(input('> evaluation <index> : ').strip())][1]
+        if not batch: 
 
-        if not grade:
-            grade = input('> grade : ')
+            FileTree.print_eval(xml, evals)
 
-        if not comment:
-            print('> comment (end with Ctrl-D):')
-            print('"""')
-            while True:
-                try:
-                    comment += input('') + '\n'
-                except EOFError:
-                    break
-            print('"""')
-            
-        yn = '' if not autoyes else 'y'
-        while yn not in ('y', 'n'):
-            yn = input('> upload evaluation, grade and comment? (y/n) ')
+            # Check if authorized to edit
+            if not evals:
+                return
 
-        if yn == 'y':
-            url, payload = self.prepare_form(xml)
-           
-            payload['do_action']       = 'comment_save'
-            payload['element_comment'] = comment
-            payload['grade']           = grade
-            payload['aproved']         = evaluation
+            # Give option to edit
+            yn = ''
+            while yn not in ('y', 'n'):
+                yn = input('> edit evaluation, grade and comment? (y/n) ')
 
-            self.opener.open(url, urlencode(payload).encode('ascii'))
+            if yn == 'y':
+
+                evals = [(item.getnext().text, item.get('value')) for item in evals]
+                print('')
+                for idx, evali in enumerate(evals):
+                    print('[%-3i] %s' % (idx, evali[0]))
+                evaluation = evals[int(input('> evaluation <index> : ').strip())][1]
+
+                grade = input('> grade : ')
+
+                print('> comment (end with Ctrl-D):')
+                print('"""')
+                while True:
+                    try:
+                        comment += input('') + '\n'
+                    except EOFError:
+                        break
+                print('"""')
+
+            else:
+                return
+                
+        # Finally, upload stuff
+
+        url, payload = self.prepare_form(xml)
+
+        payload['do_action']       = 'comment_save'
+        payload['element_comment'] = comment
+        payload['grade']           = grade
+        payload['aproved']         = evaluation
+
+        self.opener.open(url, urlencode(payload).encode('ascii'))
 
 
-    def comment_all(self):
+    def evaluate_all(self):
         print('not implemented yet')
         return
         userinput = input('> input comments file : ')
