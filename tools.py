@@ -26,10 +26,11 @@ class Tool(object):
             self.function(*arg)
 
         def __str__(self):
-            return '%-20s %s' % (('%-4s %s') % (self.cmd, self.argstr), self.desc)
+            return '%-24s %s' % (('%-8s %s') % (self.cmd, self.argstr), self.desc)
 
     def __init__(self):
         self.commands = OrderedDict()
+        self.commands['exit'] = Tool.Command('exit', sys.exit, '', 'exit')
         self.commands['h'] = Tool.Command('h', self.print_commands, '', 'print commands')
 
     def __str__(self):
