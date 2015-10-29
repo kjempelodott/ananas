@@ -125,14 +125,14 @@ class FileTree(Tool):
         def __unicode__(self):
             return '[ %s ]' % (self.title)
 
-        def make_menu(self, menu = {}):
+        def make_menu(self, menu = ''):
             for item in menu.split(','):
                 try:
-                    key, url = item.split('^')
-                    action = url.split('action=')[1].split('&')[0]
+                    key, url = item.split('^') # ValueError
+                    action = url.split('action=')[1].split('&')[0] # IndexError
                     assert(action in FileTree.Branch._imp)
                     self.menu[action] = FileTree.Branch.Menu(name = key.strip('"'), url = url)
-                except (AssertionError, IndexError):
+                except (AssertionError, ValueError, IndexError):
                     continue
 
 
@@ -212,7 +212,7 @@ class FileTree(Tool):
         data = response.read().decode('utf-8')
         xml = html.fromstring(data)
         delivery_folder = bool(xml.xpath('//td/label[@for="folder_todate"]'))
- 
+
         branches = []
         leafs = []
 
@@ -220,10 +220,9 @@ class FileTree(Tool):
                      re.findall('ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)', data))
 
         if delivery_folder:
+            tr_odd = xml.xpath('//tr[@class="tablelist-odd"]')
+            tr_even = xml.xpath('//tr[@class="tablelist-even"]')
 
-            tr_odd = xml.xpath('//tr[@class=tablelist-odd]')
-            tr_even = xml.xpath('//tr[@class=tablelist-even]')
-            
             for tr in tr_odd + tr_even:
                 try:
                     name = tr.xpath('td[2]/label')[0]
@@ -233,11 +232,11 @@ class FileTree(Tool):
                     first = name.text.strip()
                     last = name.getchildren()[0].text.strip()
 
-                    date, menu = None, {}
+                    date, menu = None, ''
                     try:
                         date = datetime.strptime(status.text.strip(),'%Y-%m-%d')
-                        url = url.xpath('a[@class=""]')[0].get('href').strip()
                         menu_id = url.xpath('a[@class="ez-menu"]')[0].get('name')
+                        url = url.xpath('a[@class=""]')[0].get('href').strip() # ValueError
                         menu = menus[menu_id]
                     except ValueError:
                         url = None
@@ -336,6 +335,7 @@ class FileTree(Tool):
         f = self.__trees__[self._current]['leafs'][int(idx)]
 
         if not f.url: # Deliveries may have no url
+            print(' !! %s has not uploaded the assignment yet' % f.title)
             return
 
         if not folder:
