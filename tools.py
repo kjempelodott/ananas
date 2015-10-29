@@ -94,7 +94,10 @@ class Members(Tool):
         try:
             who = [self.members[int(select)]]
         except ValueError:
-            who = [member for member in self.members if member.label == select]
+            if select[0] == '!':
+                who = [member for member in self.members if member.label != select[1:]]
+            else:
+                who = [member for member in self.members if member.label == select]
             if not who:
                 raise ValueError
 
