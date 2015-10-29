@@ -124,7 +124,11 @@ class Fronter(object):
                 except (IndexError, KeyError):
                     continue
 
-        except AttributeError:
+            if not room.tools:
+                print(' !! no tools available')
+                raise KeyboardInterrupt
+
+        except AttributeError: # Should only happen in interactive session
             print(' !! you must select a room first')
         
 
