@@ -276,8 +276,9 @@ class FileTree(Tool):
                     branch.children['branches'].append(FileTree.Branch(name, tid, branch))
                     branch.children['branches'][-1].make_menu(menu)
                 except:
-                    branch.children['leafs'].append(FileTree.Leaf(name, href, branch))
-                    branch.children['leafs'][-1].make_menu(menu)
+                    if 'files.phtml' in href:
+                        branch.children['leafs'].append(FileTree.Leaf(name, href, branch))
+                        branch.children['leafs'][-1].make_menu(menu)
 
         self.cwd = self.__trees__[treeid] = branch
         
@@ -337,7 +338,7 @@ class FileTree(Tool):
 
         for f in files:
             payload['file'] = open(f, 'rb')
-            self.opener.open(url, payload)
+            self.opener.open(url, urlencode(payload).encode('ascii'))
             print(col(' * ', c.ERR) + f)
 
 
