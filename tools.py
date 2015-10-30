@@ -3,13 +3,16 @@ from datetime import datetime
 from collections import namedtuple, OrderedDict
 from shutil import copyfileobj
 from lxml import html
-from plugins import Mailserver
+from plugins import Mailserver, Color
 
 if sys.version_info[0] == 2:
     from urllib import urlencode
     input = raw_input
 else:
     from urllib.parse import urlencode
+
+c = Color()
+col = c.colored
 
 
 class Tool(object):
@@ -29,6 +32,7 @@ class Tool(object):
             return '%-24s %s' % (('%-8s %s') % (self.cmd, self.argstr), self.desc)
 
     def __init__(self):
+
         self.commands = OrderedDict()
         self.commands['exit'] = Tool.Command('exit', sys.exit, '', 'exit')
         self.commands['h'] = Tool.Command('h', self.print_commands, '', 'print commands')
@@ -37,10 +41,9 @@ class Tool(object):
         return self.__class__.__name__
 
     def print_commands(self):
-        print('%s commands:' % str(self))
-        print('return <Ctrl-D>')
+        print(col('%s commands:' % str(self), c.HEAD))
+        print(col('return <Ctrl-D>', c.HL))
         print('\n'.join(str(a) for a in self.commands.values()))
-
 
 
 class Members(Tool):
@@ -48,16 +51,16 @@ class Members(Tool):
     class Member:
 
         def __init__(self, name, email, label):
+
             self.name = name
             self.email = email
             self.label = label.lower()
 
-        def __str__(self):
-            return self.__unicode__()
-
-        def __unicode__(self):
-            return '%-40s %-40s %s' % (self.name, self.email, self.label)
-
+        # __str__ is broken in Python 2 - tries to encode in ascii
+        def str(self):
+            return '%-35s %-45s %s' % (self.name, 
+                                       col(self.email, c.HL), 
+                                       col(self.label, c.HEAD))
 
     def __init__(self, client, url):
 
@@ -86,7 +89,7 @@ class Members(Tool):
     def print_members(self):
 
         for idx, member in enumerate(self.members):
-            print('[%-3i] %s' % (idx, member))
+            print(col('[%-3i] ' % idx, c.HL) + member.str())
 
 
     def mailto(self, select):
@@ -103,10 +106,9 @@ class Members(Tool):
                 raise ValueError
 
         for member in who:
-            print(' * %s' % member.name)
+            print(col(' * ', c.ERR) + member.name)
 
         self.mailserver.sendmail(who)
-
 
 
 class FileTree(Tool):
@@ -117,6 +119,7 @@ class FileTree(Tool):
         Menu = namedtuple('Menu', ['name', 'url'])
 
         def __init__(self, title, treeid, parent = None):
+
             self.title = title
             self.treeid = treeid
             self.parent = parent
@@ -124,11 +127,8 @@ class FileTree(Tool):
             self.children = { 'leafs' : [], 'branches' : [] }
             self.menu = {}
 
-        def __str__(self):
-            return self.__unicode__()
-
-        def __unicode__(self):
-            return '[ %s ]' % (self.title)
+        def str(self):
+            return col(self.title, c.DIR)
 
         def make_menu(self, menu = ''):
             for item in menu.split(','):
@@ -144,28 +144,30 @@ class FileTree(Tool):
     class Leaf(Branch):
 
         def __init__(self, title, url, parent):
+
             self.title = title
             self.url = url
             self.parent = parent
             self.menu = {}
 
-        def __unicode__(self):
-            return '  %s' % (self.title)
+        def str(self):
+            return self.title
 
 
     class Delivery(Leaf):
 
         def __init__(self, firstname, lastname, url, date, parent):
+
             self.firstname = firstname
             self.lastname = lastname
             self.title = '%s %s' % (firstname, lastname)
             self.url = url
-            self.date = date.strftime('%Y-%m-%d') if date else None
+            self.date = col(date.strftime('%Y-%m-%d'), c.HL, True) if date else col('NA', c.ERR, True)
             self.parent = parent
             self.menu = {}
 
-        def __unicode__(self):
-            return '%-15s %s' % (self.date, self.title)
+        def str(self):
+            return '%-20s %s' % (self.date, self.title)
                 
 
     def __init__(self, client, url):
@@ -218,7 +220,7 @@ class FileTree(Tool):
 
         url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
         response = self.opener.open(url)
-        data = response.read().decode('utf-8')
+        data = response.read()
         xml = html.fromstring(data)
         branch.is_task = bool(xml.xpath('//td/label[@for="folder_todate"]'))
 
@@ -226,7 +228,8 @@ class FileTree(Tool):
         leafs = []
 
         menus = dict((mid, menu) for mid, menu in
-                     re.findall('ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)', data))
+                     re.findall('ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)', 
+                                data.decode('utf-8')))
 
         if branch.is_task:
 
@@ -267,12 +270,13 @@ class FileTree(Tool):
                 href = link.get('href')
                 menu_id = menu_id.get('name')
                 menu = menus[menu_id]
+                name = link.text.strip()
                 try:
-                    tid = int(re.findall('treeid=([0-9]+)', href)[0])
-                    branch.children['branches'].append(FileTree.Branch(link.text, tid, branch))
+                    tid = int(re.findall('treeid=([0-9]+)', href.decode('utf-8'))[0])
+                    branch.children['branches'].append(FileTree.Branch(name, tid, branch))
                     branch.children['branches'][-1].make_menu(menu)
                 except:
-                    branch.children['leafs'].append(FileTree.Leaf(link.text, href, branch))
+                    branch.children['leafs'].append(FileTree.Leaf(name, href, branch))
                     branch.children['leafs'][-1].make_menu(menu)
 
         self.cwd = self.__trees__[treeid] = branch
@@ -280,10 +284,10 @@ class FileTree(Tool):
 
     def print_content(self):
 
-        print(self.cwd.path)
+        print(col(self.cwd.path, c.HEAD))
         for items in (self.cwd.children['branches'], self.cwd.children['leafs']):
             for idx, item in enumerate(items):
-                print('[%-3i] %s' % (idx, item))
+                print(col('[%-3i] ' % idx, c.HL) + item.str())
         
 
     def goto_idx(self, idx):
@@ -296,7 +300,7 @@ class FileTree(Tool):
         idx = int(idx)
         branches = self.cwd.children['branches']
         if idx >= len(branches):
-            print(' !! not a dir')
+            print(col(' !! not a dir', c.ERR))
             return
         
         self.goto_branch(branches[idx])
@@ -320,7 +324,7 @@ class FileTree(Tool):
         try:
             assert(os.access(userinput, os.R_OK))
         except AssertionError:
-            print(' !! cannot read %s' % userinput)
+            print(col(' !! cannot read %s' % userinput, c.ERR))
             raise EOFError
 
         url = self.TARGET +'/links/structureprops.phtml?php_action=file&treeid=%i' % self.cwd.treeid
@@ -334,7 +338,7 @@ class FileTree(Tool):
         for f in files:
             payload['file'] = open(f, 'rb')
             self.opener.open(url, payload)
-            print(' * %s' % f)
+            print(col(' * ', c.ERR) + f)
 
 
     def download(self, idx, folder = None):
@@ -342,7 +346,7 @@ class FileTree(Tool):
         leaf = self.cwd.children['leafs'][int(idx)]
 
         if not leaf.url: # Assignments may have no url
-            print(' !! %s has not uploaded the assignment yet' % leaf.title)
+            print(col(' !! %s has not uploaded the assignment yet' % leaf.title, c.ERR))
             return
 
         if not folder:
@@ -355,14 +359,14 @@ class FileTree(Tool):
 
         with open(fname, 'wb') as local:
             copyfileobj(self.opener.open(self.ROOT + leaf.url), local)
-        print(' * %s' % fname)
+        print(col(' * ', c.ERR) + fname)
 
 
     def download_all(self):
         
         nfiles = len(self.cwd.children['leafs'])
         if not nfiles:
-            print(' !! no files in current dir')
+            print(col(' !! no files in current dir', c.ERR))
             return
             
         folder = self.get_local_folder()
@@ -385,13 +389,13 @@ class FileTree(Tool):
 
         comment = xml.xpath('//input[@name="element_comment_hidden"]')[0]
         if comment.value:
-            print(xml.xpath('//label[@for="element_comment"]')[0].text)
-            print('\n' + comment.value.strip() + '\n')
+            print(col(xml.xpath('//label[@for="element_comment"]')[0].text, c.HL))
+            print('"""\n' + comment.value.strip() + '\n"""')
 
         grade = xml.xpath('//input[@name="grade_hidden"]')[0]
         grade_label = xml.xpath('//label[@for="grade"]')[0]
         if grade.value:
-            print(grade_label.text + ' ' + grade.value)
+            print(col(grade_label.text, c.HL) + ' ' + grade.value)
 
         eval_text = None
         eval_span = grade.getnext().getchildren()[0].getchildren()[0]
@@ -404,18 +408,18 @@ class FileTree(Tool):
             eval_text = eval_span.getparent().getnext().text
 
         if eval_text:
-            print(eval_span.text + ' ' + eval_text)
+            print(col(eval_span.text, c.HL) + ' ' + eval_text)
 
 
     def evaluation(self, idx, comment = '', grade = '', evaluation = '', batch = False):
 
         leaf = self.cwd.children['leafs'][int(idx)]
         if not 'new_comment' in leaf.menu:
-            print(' !! commenting not available (%s)' % f.title)
+            print(col(' !! commenting not available (%s)' % f.title))
             return
         
         response = self.opener.open(self.TARGET + '/links/' + leaf.menu['new_comment'].url)
-        xml = html.fromstring(response.read().decode('utf-8'))
+        xml = html.fromstring(response.read())
         evals = xml.xpath('//input[@type="radio"]')
 
         batch = batch and comment and grade and evaluation
@@ -438,7 +442,7 @@ class FileTree(Tool):
                 evals = [(item.getnext().text, item.get('value')) for item in evals]
                 print('')
                 for idx, evali in enumerate(evals):
-                    print('[%-3i] %s' % (idx, evali[0]))
+                    print(col('[%-3i] ' % idx, c.HL) + evali[0])
                 evaluation = evals[int(input('> evaluation <index> : ').strip())][1]
 
                 grade = input('> grade : ')
@@ -486,9 +490,9 @@ class FileTree(Tool):
             
         except OSError as oe:
             if (oe.errno == 2):
-                print(' !! %s does not exist' % userinput)
+                print(col(' !! %s does not exist' % userinput, c.ERR))
             else:
-                print(' !! failed to read %s' % userinput)
+                print(col(' !! failed to read %s' % userinput, c.ERR))
             raise EOFError
 
 
@@ -505,7 +509,7 @@ class FileTree(Tool):
                 assert(oe.errno == 17)
             assert(os.access(folder, os.W_OK))
         except AssertionError:
-            print(' !! failed to create dir')
+            print(col(' !! failed to create dir', c.ERR))
             raise EOFError
 
         return folder

@@ -13,6 +13,10 @@ if sys.version_info[0] == 2:
     input = raw_input
 
 from fronter import Fronter
+from plugins import Color
+
+c = Color()
+col = c.colored
 
 
 def loop(instr):
@@ -66,7 +70,7 @@ def start_shell():
         global client
         client = Fronter()
     except ValueError:
-        print('Wrong username/password')
+        print(col('Wrong username/password', c.ERR))
         sys.exit(0)
     except (KeyboardInterrupt, EOFError):
         print('\n> exit')
@@ -76,7 +80,7 @@ def start_shell():
 
     @loop
     def select_room():
-        print('\nreturn <Ctrl-D>')
+        print(col('\nreturn <Ctrl-D>', c.HL))
         client.print_rooms()
 
         idx = int(input('> select a room <index> : ').strip())
@@ -84,7 +88,7 @@ def start_shell():
 
         @loop
         def select_tool():
-            print('\nreturn <Ctrl-D>')
+            print(col('\nreturn <Ctrl-D>', c.HL))
             client.print_tools()
 
             idx = int(input('> select a tool <index> : ').strip())

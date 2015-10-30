@@ -13,10 +13,11 @@ else: # Python3
     from urllib.parse import urlencode
 
 from tools import Members, FileTree
+from plugins import Color
 
+c = Color()
+col = c.colored
 
-class DebugSession(BaseException):
-    pass
 
 class Fronter(object):
 
@@ -67,9 +68,9 @@ class Fronter(object):
         user = getuser()
         userinput = input('Username: (%s) ' % user)
         payload['feidename'] = self.__user__ = userinput if userinput else user
-        payload['password'] = getpass()
+        payload['password'] = getpass().encode('utf-8')
         # Save it for later use, but encode it just in case lasers, pirates and stupid shit
-        self.__secret__ = base64.b64encode(payload['password']) 
+        self.__secret__ = base64.b64encode(payload['password'])
         data = urlencode(payload).encode('ascii')
         response = self.opener.open(response.url, data)
         
@@ -86,7 +87,7 @@ class Fronter(object):
     
         url = self.TARGET + '/adm/projects.phtml'
         response = self.opener.open(url)
-        xml = html.fromstring(response.read().decode('utf-8'))
+        xml = html.fromstring(response.read())
         rooms = xml.xpath('//a[@class="black-link"]')
         self.rooms = [ self.Room(name  = room.text.strip(), 
                                  id    = int(room.get('href').split('=')[-1]), 
@@ -97,7 +98,7 @@ class Fronter(object):
 
         room = self.rooms[idx]
         self.roomid = idx
-        print(' * %s' % room.name)
+        print(col(' * ', c.ERR) + room.name)
         if not room.tools:
             self.get_tools()
 
@@ -112,7 +113,7 @@ class Fronter(object):
             # Read the 'toolbar' on the right hand side
             url = self.TARGET + '/navbar.phtml?goto_prjid=%i' % room.id
             response = self.opener.open(url)
-            xml = html.fromstring(response.read().decode('utf-8'))
+            xml = html.fromstring(response.read())
             tools = xml.xpath('//a[@class="room-tool"]')
 
             for tool in tools:
@@ -125,17 +126,17 @@ class Fronter(object):
                     continue
 
             if not room.tools:
-                print(' !! no tools available')
+                print(col(' !! no tools available', c.ERR))
                 raise KeyboardInterrupt
 
         except AttributeError: # Should only happen in interactive session
-            print(' !! you must select a room first')
+            print(col(' !! you must select a room first', c.ERR))
         
 
     def select_tool(self, idx):
 
         tool = self.rooms[self.roomid].tools[idx]
-        print(' * %s' % tool[0])
+        print(col(' * ', c.ERR) + tool[0])
         if type(tool[2]) is str:
             tool[2] = globals()[tool[1]](self, self.TARGET + tool[2])
         return tool[2]
@@ -143,8 +144,8 @@ class Fronter(object):
 
     def print_rooms(self):
         for idx, room in enumerate(self.rooms):
-            print('[%-3i] %s' % (idx, room.name))
+            print(col('[%-3i] ' % idx, c.HL) + room.name)
 
     def print_tools(self):
         for idx, tool in enumerate(self.rooms[self.roomid].tools):
-            print('[%-3i] %s' % (idx, tool[0]))
+            print(col('[%-3i] ' % idx, c.HL) + tool[0])

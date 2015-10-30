@@ -8,9 +8,9 @@ class Mailserver(smtplib.SMTP_SSL, object):
 
     def __init__(self, user, secret):
         super(Mailserver, self).__init__('smtp.uio.no', 465)
-        self.login(user, base64.b64decode(secret))
+        self.login(user, base64.b64decode(secret).decode('ascii'))
         self.me = user + '@mail.uio.no'
-
+        
     def sendmail(self, recipients):
 
         subject = input('> subject : ')
@@ -32,3 +32,18 @@ class Mailserver(smtplib.SMTP_SSL, object):
             for rec in recipients:
                 print(' * %s' % rec.email)
                 super(Mailserver, self).sendmail(self.me, rec.email, message)
+
+
+class Color():
+     
+    def __init__(self):
+        
+        self.HEAD = '\033[1;33m'
+        self.HL   = '\033[1;36m'
+        self.DIR  = '\033[1;34m'
+        self.ERR  = '\033[31m'
+        self.END  = '\033[0m'
+        
+    def colored(self, text, style = '\033[m', padding = False):
+        return style + text + self.END + padding * ' ' * (8 - len(style))
+
