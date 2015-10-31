@@ -13,7 +13,7 @@ Fronter is a teaching platform, and I don't like it. I like Python.
   * Read and edit evaluation, grade and comments
   * Download files
   * Upload files
-  * Delete files (not implemented yet)
+  * Delete files
 
 #### Requirements
 

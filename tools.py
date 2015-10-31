@@ -335,11 +335,9 @@ class FileTree(Tool):
         url, payload = self.prepare_form(xml)
 
         payload['do_action'] = 'file_save'
-
-        for f in files:
-            payload['file'] = open(f, 'rb')
-            self.opener.open(url, urlencode(payload).encode('ascii'))
-            print(col(' * ', c.ERR) + f)
+        payload['file'] = open(userinput, 'rb')
+        self.opener.open(url, payload)
+        print(col(' * ', c.ERR) + userinput)
 
 
     def download(self, idx, folder = None):
@@ -375,14 +373,34 @@ class FileTree(Tool):
             self.download(idx, folder)
 
     
-    def delete(self):
-        print('not implemented yet')
-        return
+    def delete(self, idx):
+
+        leaf = self.cwd.children['leafs'][int(idx)]
+        if not leaf.url:
+            return
+
+        if not 'multi_delete' in leaf.menu:
+            print(col(' !! not authorized to delete (%s)' % leaf.title))
+            return
+
+        self.opener.open(self.TARGET + '/links/' + leaf.menu['multi_delete'].url)
+        print(col(' * ', c.ERR) + leaf.title)
 
 
     def delete_all(self):
-        print('not implemented yet')
-        return
+
+        nfiles = len(self.cwd.children['leafs'])
+        if not nfiles:
+            print(col(' !! no files in current dir', c.ERR))
+            return
+            
+        yn = ''
+        while yn not in ('y', 'n'):
+            yn = input('> delete all in %s? (y/n) ' % self.cwd.path)
+
+        if yn == 'y':
+            for idx in range(nfiles):
+                self.delete(idx)
 
 
     @staticmethod
