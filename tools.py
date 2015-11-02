@@ -272,7 +272,7 @@ class FileTree(Tool):
                 menu = menus[menu_id]
                 name = link.text.strip()
                 try:
-                    tid = int(re.findall('treeid=([0-9]+)', href.decode('utf-8'))[0])
+                    tid = int(re.findall('treeid=([0-9]+)', href)[0])
                     branch.children['branches'].append(FileTree.Branch(name, tid, branch))
                     branch.children['branches'][-1].make_menu(menu)
                 except:

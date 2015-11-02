@@ -19,7 +19,7 @@ Fronter is a teaching platform, and I don't like it. I like Python.
 
 * Python >= 2.7
 * (IPython for globbing)
-* python-MultipartPostHandler (broken in Python 3 :()
+* python-MultipartPostHandler (for Python2)
 
 #### TODO
 

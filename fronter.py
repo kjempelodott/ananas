@@ -2,15 +2,16 @@ import re, sys, base64
 from collections import namedtuple
 from getpass import getuser, getpass
 from lxml import html
-from MultipartPostHandler import MultipartPostHandler
 
 if sys.version_info[0] == 2:
     from urllib2 import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib import urlencode
+    from MultipartPostHandler import MultipartPostHandler
     input = raw_input
 else: # Python3
     from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib.parse import urlencode
+    from MultipartPostHandler3 import MultipartPostHandler
 
 from tools import Members, FileTree
 from plugins import Color
