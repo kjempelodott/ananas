@@ -1,5 +1,6 @@
 import os, sys, re
 from datetime import datetime
+from glob import glob
 from collections import namedtuple, OrderedDict
 from shutil import copyfileobj
 from lxml import html
@@ -198,10 +199,8 @@ class FileTree(Tool):
                                               'upload evaluations from xml')
         self.commands['eval']  = Tool.Command('eval', self.evaluation, '<index>', 
                                               'read and edit evaluation')
-        # Reload
-        self.commands['reload']  = Tool.Command('reload', self.init_tree, '', 'reload (clean cache)')
 
-        
+
     def init_tree(self):
         
         response = self.opener.open(self.url)
@@ -211,11 +210,67 @@ class FileTree(Tool):
         self.goto_branch(root)
     
 
-    def goto_branch(self, branch):
+    def refresh(self):
 
-        treeid = branch.treeid
-        if treeid in self.__trees__:
-            self.cwd = branch
+        self.goto_branch(self.cwd, True)
+
+
+    def _parse_task(self, xml, menus):
+
+        tr_odd = xml.xpath('//tr[@class="tablelist-odd"]')
+        tr_even = xml.xpath('//tr[@class="tablelist-even"]')
+
+        for tr in tr_odd + tr_even:
+            try:
+                name = tr.xpath('td[2]/label')[0]
+                url = tr.xpath('td[3]')[0]
+                status = tr.xpath('td[4]/label')[0]
+
+                first = name.text.strip()
+                last = name.getchildren()[0].text
+                last = '' if not last else last.strip()
+
+                date, menu = None, ''
+                try:
+                    date = datetime.strptime(status.text.strip(),'%Y-%m-%d')
+                    menu_id = url.xpath('a[@class="ez-menu"]')[0].get('name')
+                    url = url.xpath('a[@class=""]')[0].get('href').strip() # ValueError
+                    menu = menus[menu_id]
+                except ValueError:
+                    url = None
+
+                self.cwd.children['leafs'].append(FileTree.Delivery(first, last, url, date, treeid))
+                self.cwd.children['leafs'][-1].make_menu(menu)
+
+            except IndexError:
+                continue
+
+
+    def _parse(self, xml, menus, refresh = False):
+
+        links = xml.xpath('//a[@class="black-link"]')
+        menu_ids = xml.xpath('//a[@class="ez-menu"]')
+
+        for link, menu_id in zip(links, menu_ids):
+            href = link.get('href')
+            menu_id = menu_id.get('name')
+            menu = menus[menu_id]
+            name = link.text.strip()
+            try:
+                assert(not refresh)
+                tid = int(re.findall('treeid=([0-9]+)', href)[0])
+                self.cwd.children['branches'].append(FileTree.Branch(name, tid, self.cwd))
+                self.cwd.children['branches'][-1].make_menu(menu)
+            except:
+                if 'files.phtml' in href:
+                    self.cwd.children['leafs'].append(FileTree.Leaf(name, href, self.cwd))
+                    self.cwd.children['leafs'][-1].make_menu(menu)
+
+
+    def goto_branch(self, branch, refresh = False):
+
+        self.cwd, treeid = branch, branch.treeid
+        if treeid in self.__trees__ and not refresh:
             return
 
         url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
@@ -224,64 +279,18 @@ class FileTree(Tool):
         xml = html.fromstring(data)
         branch.is_task = bool(xml.xpath('//td/label[@for="folder_todate"]'))
 
-        branches = []
-        leafs = []
-
         menus = dict((mid, menu) for mid, menu in
                      re.findall('ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)', 
                                 data.decode('utf-8')))
 
+        branch.children['leafs'] = []
         if branch.is_task:
-
-            tr_odd = xml.xpath('//tr[@class="tablelist-odd"]')
-            tr_even = xml.xpath('//tr[@class="tablelist-even"]')
-
-            for tr in tr_odd + tr_even:
-                try:
-                    name = tr.xpath('td[2]/label')[0]
-                    url = tr.xpath('td[3]')[0]
-                    status = tr.xpath('td[4]/label')[0]
-
-                    first = name.text.strip()
-                    last = name.getchildren()[0].text
-                    last = '' if not last else last.strip()
-
-                    date, menu = None, ''
-                    try:
-                        date = datetime.strptime(status.text.strip(),'%Y-%m-%d')
-                        menu_id = url.xpath('a[@class="ez-menu"]')[0].get('name')
-                        url = url.xpath('a[@class=""]')[0].get('href').strip() # ValueError
-                        menu = menus[menu_id]
-                    except ValueError:
-                        url = None
-
-                    branch.children['leafs'].append(FileTree.Delivery(first, last, url, date, treeid))
-                    branch.children['leafs'][-1].make_menu(menu)
-
-                except IndexError:
-                    continue
-
+            self._parse_task(xml, menus)
         else:
+            self._parse(xml, menus, refresh)
 
-            links = xml.xpath('//a[@class="black-link"]')
-            menu_ids = xml.xpath('//a[@class="ez-menu"]')
+        self.__trees__[treeid] = branch
 
-            for link, menu_id in zip(links, menu_ids):
-                href = link.get('href')
-                menu_id = menu_id.get('name')
-                menu = menus[menu_id]
-                name = link.text.strip()
-                try:
-                    tid = int(re.findall('treeid=([0-9]+)', href)[0])
-                    branch.children['branches'].append(FileTree.Branch(name, tid, branch))
-                    branch.children['branches'][-1].make_menu(menu)
-                except:
-                    if 'files.phtml' in href:
-                        branch.children['leafs'].append(FileTree.Leaf(name, href, branch))
-                        branch.children['leafs'][-1].make_menu(menu)
-
-        self.cwd = self.__trees__[treeid] = branch
-        
 
     def print_content(self):
 
@@ -320,13 +329,18 @@ class FileTree(Tool):
     def upload(self):
 
         folder = os.getcwd()
-        userinput = input('> select a file (%s) : ' % folder)
-        
-        try:
-            assert(os.access(userinput, os.R_OK))
-        except AssertionError:
-            print(col(' !! cannot read %s' % userinput, c.ERR))
-            raise EOFError
+        userinput = input('> select file(s) (%s) : ' % folder)
+        files = []
+
+        for f in glob(userinput):
+            try:
+                assert(os.access(f, os.R_OK))
+                files.append(f)
+            except AssertionError:
+                print(col(' !! cannot read %s' % f, c.ERR))
+
+        if not files:
+            return
 
         url = self.TARGET +'/links/structureprops.phtml?php_action=file&treeid=%i' % self.cwd.treeid
         response = self.opener.open(url)
@@ -335,9 +349,12 @@ class FileTree(Tool):
         url, payload = self.prepare_form(xml)
 
         payload['do_action'] = 'file_save'
-        payload['file'] = open(userinput, 'rb')
-        self.opener.open(url, payload)
-        print(col(' * ', c.ERR) + userinput)
+        for f in files:
+            payload['file'] = open(f, 'rb')
+            self.opener.open(url, payload)
+            print(col(' * ', c.ERR) + f)
+
+        self.refresh()
 
 
     def download(self, idx, folder = None):
@@ -373,7 +390,7 @@ class FileTree(Tool):
             self.download(idx, folder)
 
     
-    def delete(self, idx):
+    def delete(self, idx, batch = False):
 
         leaf = self.cwd.children['leafs'][int(idx)]
         if not leaf.url:
@@ -385,6 +402,9 @@ class FileTree(Tool):
 
         self.opener.open(self.TARGET + '/links/' + leaf.menu['multi_delete'].url)
         print(col(' * ', c.ERR) + leaf.title)
+
+        if not batch:
+            self.refresh()
 
 
     def delete_all(self):
@@ -400,7 +420,9 @@ class FileTree(Tool):
 
         if yn == 'y':
             for idx in range(nfiles):
-                self.delete(idx)
+                self.delete(idx, True)
+
+        self.refresh()
 
 
     @staticmethod
