@@ -239,7 +239,7 @@ class FileTree(Tool):
                 except ValueError:
                     url = None
 
-                self.cwd.children['leafs'].append(FileTree.Delivery(first, last, url, date, treeid))
+                self.cwd.children['leafs'].append(FileTree.Delivery(first, last, url, date, self.cwd))
                 self.cwd.children['leafs'][-1].make_menu(menu)
 
             except IndexError:
