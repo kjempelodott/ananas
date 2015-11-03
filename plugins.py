@@ -1,8 +1,12 @@
 import sys, base64
 import smtplib
+from email.header import Header
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 if sys.version_info[0] == 2:
     input = raw_input
+
 
 class Mailserver(smtplib.SMTP_SSL, object):
 
@@ -13,13 +17,17 @@ class Mailserver(smtplib.SMTP_SSL, object):
         
     def sendmail(self, recipients):
 
-        subject = input('> subject : ')
-        print('> text (end with Ctrl-D):')
+        subject = Header(input('> subject : '), 'utf-8')
+        msg = MIMEMultipart()
+        msg['Subject'] = subject
+        msg['From'] = self.me
+        text = ''
+
+        print('> message (end with Ctrl-D):')
         print('"""')
-        message = 'Subject: %s\n' % subject
         while True:
             try:
-                message += input('') + '\n'
+                text += input('') + '\n'
             except EOFError:
                 break
         print('"""')
@@ -27,11 +35,17 @@ class Mailserver(smtplib.SMTP_SSL, object):
         yn = ''
         while yn not in ('y', 'n'):
             yn = input('> send this message? (y/n) ')
+
         if yn == 'y':
+
+            text = MIMEText(text, 'plain', 'utf-8')
+            msg.attach(text)
+
             print(' ... sending ... ')
             for rec in recipients:
+                msg['To'] = rec.email
                 print(' * %s' % rec.email)
-                super(Mailserver, self).sendmail(self.me, rec.email, message)
+                super(Mailserver, self).sendmail(self.me, rec.email, msg.as_string())
 
 
 class Color():
