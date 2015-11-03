@@ -4,11 +4,13 @@ from getpass import getuser, getpass
 from lxml import html
 
 if sys.version_info[0] == 2:
+    from ConfigParser import ConfigParser
     from urllib2 import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib import urlencode
     from MultipartPostHandler import MultipartPostHandler
     input = raw_input
 else: # Python3
+    from configparser import ConfigParser
     from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib.parse import urlencode
     from MultipartPostHandler3 import MultipartPostHandler
@@ -29,21 +31,26 @@ class Fronter(object):
     }
 
     def __init__(self):
-        
-        def DEBUG():
-            raise DebugSession
+
+        org = None
+        try:
+            conf = ConfigParser()
+            conf.read('fronter.conf')
+            org = conf.get('fronter', 'org').strip('\'')
+        except:
+            print(col(' !! [fronter] org not set in fronter.conf', c.ERR))
+            raise Exception
 
         self.ROOT = 'https://fronter.com'
-        self.TARGET = 'https://fronter.com/uio/'
-        self.DEBUG = DEBUG
+        self.TARGET = 'https://fronter.com/%s/' % org
 
         self.cookie_jar = HTTPCookieProcessor()
         self.opener = build_opener(HTTPRedirectHandler, MultipartPostHandler, self.cookie_jar)
         self.rooms = []
-        self.login()
+        self.login(org)
 
 
-    def login(self):
+    def login(self, org):
 
         # Step 1: Get SimpleSAMLSessionID
         #
@@ -55,8 +62,8 @@ class Fronter(object):
         response = self.opener.open(self.TARGET)
 
 
-        # Step 2: Choose affiliation (UiO)
-        response = self.opener.open(response.url + '&org=uio.no')
+        # Step 2: Set organization
+        response = self.opener.open(response.url + '&org=%s.no' % org)
 
 
         # Step 3: Login

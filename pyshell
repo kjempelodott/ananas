@@ -13,7 +13,7 @@ if sys.version_info[0] == 2:
     from urllib2 import URLError
     input = raw_input
 else:
-    from urllib import URLError
+    from urllib.error import URLError
 
 from socket import gaierror
 from fronter import Fronter
@@ -80,6 +80,11 @@ def start_shell():
         sys.exit(0)
     except (KeyboardInterrupt, EOFError):
         print('\n> exit')
+        sys.exit(0)
+    except (URLError, gaierror):
+        print(col('No internet connection', c.ERR))
+        sys.exit(0)
+    except:
         sys.exit(0)
         
     client.get_rooms() 
