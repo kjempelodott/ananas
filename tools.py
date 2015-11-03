@@ -269,8 +269,9 @@ class FileTree(Tool):
 
     def goto_branch(self, branch, refresh = False):
 
-        self.cwd, treeid = branch, branch.treeid
+        treeid = branch.treeid
         if treeid in self.__trees__ and not refresh:
+            self.cwd = branch
             return
 
         url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
@@ -284,6 +285,7 @@ class FileTree(Tool):
                                 data.decode('utf-8')))
 
         branch.children['leafs'] = []
+        self.cwd = branch
         if branch.is_task:
             self._parse_task(xml, menus)
         else:

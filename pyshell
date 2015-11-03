@@ -10,8 +10,12 @@ fi
 import sys
 
 if sys.version_info[0] == 2:
+    from urllib2 import URLError
     input = raw_input
+else:
+    from urllib import URLError
 
+from socket import gaierror
 from fronter import Fronter
 from plugins import Color
 
@@ -25,11 +29,13 @@ def loop(instr):
             try:
                 instr()
             except KeyError:
-                print(' !! invalid command')
+                print(col(' !! invalid command', c.ERR))
             except IndexError:
-                print(' !! index out of range')
+                print(col(' !! index out of range', c.ERR))
             except (ValueError, TypeError):
-                print(' !! invalid argument')
+                print(col(' !! invalid argument', c.ERR))
+            except (URLError, gaierror):
+                print(col(' ?? connection lost', c.ERR))
             except EOFError:
                 print('')
                 break
