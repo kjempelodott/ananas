@@ -190,7 +190,7 @@ class FileTree(Tool):
                                              'download all files in current dir')
         self.commands['get']  = Tool.Command('get', self.download, '<index>', 'download a file')
         # Upload
-        self.commands['put'] = Tool.Command('put', self.upload, '', 'upload file(s) to current dir')
+        self.commands['post'] = Tool.Command('post', self.upload, '', 'upload file(s) to current dir')
         # Delete
         self.commands['del#'] = Tool.Command('del#', self.delete_all, '', 'delete all in current dir')
         self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete a file/dir')

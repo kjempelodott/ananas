@@ -2,6 +2,8 @@
 
 Fronter is a teaching platform, and I don't like it. I like Python.
 
+Run it like this: $ ./pyshell
+
 ### Stuff you can do
 
 * Select a room
@@ -19,9 +21,10 @@ Fronter is a teaching platform, and I don't like it. I like Python.
 
 * Python >= 2.7
 * (IPython for globbing)
-* python-multipartposthandler (Python 2.x)
+* python-lxml
+* pip multipartposthandler (if Python 2.x)
 
 #### TODO
 
-* Choose affiliation (hardcoded to uio.no)
+* Edit multiple eval/grade/comments (e.g. read from xml)
 * Write a better README ...
