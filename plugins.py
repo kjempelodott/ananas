@@ -1,14 +1,19 @@
-import sys, base64
-import smtplib
+import sys, os, stat, base64
+import smtplib, mimetypes
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.generator import _make_boundary as choose_boundary
 
 if sys.version_info[0] == 2:
     from ConfigParser import ConfigParser
+    from urllib2 import HTTPHandler, BaseHandler
+    from urllib import urlencode
     input = raw_input
 else:
     from configparser import ConfigParser
+    from urllib.request import HTTPHandler, BaseHandler
+    from urllib.parse import urlencode
 
 
 class Color():
@@ -94,3 +99,62 @@ class Mailserver(smtplib.SMTP_SSL, object):
                 except:
                     print(col(' !! failed to send mail', c.ERR))
                     break
+
+
+class MultipartPostHandler(BaseHandler):
+
+    handler_order = HTTPHandler.handler_order - 10
+
+    def http_request(self, request):
+        data = request.data
+        if data is not None and type(data) != bytes:
+            files = []
+            header = []
+            try:
+                 for key, value in data.items():
+                     if hasattr(value, 'fileno'):
+                         files.append((key, value))
+                     else:
+                         header.append((key, value))
+            except TypeError:
+                return request
+
+            if not files:
+                data = urlencode(header)
+            else:
+                bnd, data = self.multipart_encode(header, files)
+                request.add_unredirected_header('Content-Type', 'multipart/form-data; boundary=' + bnd)
+            request.data = data
+
+        return request
+
+    def multipart_encode(self, header, files):
+        bnd = choose_boundary()
+
+        buffer = ''
+        for key, value in header:
+            buffer += '--%s\r\n' % bnd
+            buffer += 'Content-Disposition: form-data; name="%s"' % key
+            buffer += '\r\n\r\n' + value + '\r\n'
+        buffer = buffer.encode('utf-8')
+
+        for key, fd in files:
+            file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
+            filename = fd.name.split('/')[-1]
+            contenttype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+
+            tmp = '--%s\r\n' % bnd
+            tmp += 'Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key, filename)
+            tmp += 'Content-Type: %s\r\n' % contenttype
+            tmp += '\r\n'
+
+            fd.seek(0)
+            buffer += tmp.encode('utf-8')
+            buffer += fd.read()
+            buffer += '\r\n'.encode('utf-8')
+
+        end = '--%s--\r\n\r\n' % bnd
+        buffer += end.encode('utf-8')
+        return bnd, buffer
+
+    https_request = http_request

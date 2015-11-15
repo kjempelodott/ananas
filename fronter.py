@@ -7,16 +7,14 @@ if sys.version_info[0] == 2:
     from ConfigParser import ConfigParser
     from urllib2 import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib import urlencode
-    from MultipartPostHandler import MultipartPostHandler
     input = raw_input
 else: # Python3
     from configparser import ConfigParser
     from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib.parse import urlencode
-    from MultipartPostHandler3 import MultipartPostHandler
 
 from tools import Members, FileTree
-from plugins import Color
+from plugins import Color, MultipartPostHandler
 
 c = Color()
 col = c.colored

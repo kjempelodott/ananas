@@ -7,10 +7,10 @@ from lxml import html
 from plugins import Mailserver, Color
 
 if sys.version_info[0] == 2:
-    from urllib import urlencode
+    from urllib import urlencode, unquote_plus
     input = raw_input
 else:
-    from urllib.parse import urlencode
+    from urllib.parse import urlencode, unquote_plus
 
 c = Color()
 col = c.colored
@@ -363,14 +363,19 @@ class FileTree(Tool):
     def download(self, idx, folder = None):
 
         leaf = self._get_leaf(idx)
+        if not leaf:
+            return
+
         if not leaf.url: # Assignments may have no url
             print(col(' !! %s has not uploaded the assignment yet' % leaf.title, c.ERR))
             return
 
         if not folder:
-            folder = self.get_local_folder()
+            folder = self._get_local_folder()
+            if not folder:
+                return
 
-        fname = os.path.basename(leaf.url)
+        fname = unquote_plus(os.path.basename(leaf.url))
         if self.cwd.is_task:
             fname = '%s_%s' % (leaf.lastname, fname)
         fname = os.path.join(folder, fname)
@@ -387,7 +392,10 @@ class FileTree(Tool):
             print(col(' !! no files in current dir', c.ERR))
             return
             
-        folder = self.get_local_folder()
+        folder = self._get_local_folder()
+        if not folder:
+            return
+
         offset = len(self.cwd.children['branches'])
         for idx in range(offset, offset + nfiles):
             self.download(idx, folder)
@@ -396,7 +404,7 @@ class FileTree(Tool):
     def delete(self, idx, batch = False):
 
         leaf = self._get_leaf(idx)
-        if not leaf.url:
+        if not leaf or not leaf.url:
             return
 
         if not 'multi_delete' in leaf.menu:
@@ -540,7 +548,7 @@ class FileTree(Tool):
                 print(col(' !! failed to read %s' % userinput, c.ERR))
 
 
-    def get_local_folder(self):
+    def _get_local_folder(self):
 
         folder = os.getcwd()
         userinput = input('> select folder (%s) : ' % folder)
@@ -554,7 +562,7 @@ class FileTree(Tool):
             assert(os.access(folder, os.W_OK))
         except AssertionError:
             print(col(' !! failed to create dir', c.ERR))
-            raise KeyboardInterrupt
+            return
 
         return folder
 
@@ -564,6 +572,6 @@ class FileTree(Tool):
         idx = int(idx) - len(self.cwd.children['branches'])
         if idx < 0:
             print(col(' !! not a file', c.ERR))
-            raise KeyboardInterrupt
+            return
 
         return self.cwd.children['leafs'][idx]
