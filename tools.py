@@ -448,7 +448,7 @@ class FileTree(Tool):
 
         leaf = self.cwd.children['leafs'][int(idx)]
         if not 'new_comment' in leaf.menu:
-            print(col(' !! commenting not available (%s)' % f.title))
+            print(col(' !! commenting not available (%s)' % leaf.title))
             return
         
         response = self.opener.open(self.TARGET + '/links/' + leaf.menu['new_comment'].url)
@@ -485,7 +485,7 @@ class FileTree(Tool):
                 while True:
                     try:
                         comment += input('') + '\n'
-                    except KeyboardInterrupt:
+                    except EOFError:
                         break
                 print('"""')
 
