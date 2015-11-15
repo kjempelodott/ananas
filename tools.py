@@ -72,8 +72,8 @@ class Members(Tool):
         self.get_members(url)
 
         self.commands['ls']  = Tool.Command('ls', self.print_members, '', 'list members')
-        self.commands['mail'] = \
-            Tool.Command('mail', self.mailto, '<index/label>', 'send mail to a (group of) member(s)')
+        self.commands['mail'] = Tool.Command('mail', self.mailto, '<index/label>',
+                                             'send mail to a (group of) member(s)')
 
 
     def get_members(self, url):
@@ -97,7 +97,8 @@ class Members(Tool):
 
         who = None
         try:
-            who = [self.members[int(select)]]
+            idx = select.split()
+            who = [self.members[int(i)] for i in idx]
         except ValueError:
             if select[0] == '!':
                 who = [member for member in self.members if member.label != select[1:]]
@@ -186,17 +187,13 @@ class FileTree(Tool):
     
         # Shell-like filesystem stuff
         self.commands['ls'] = Tool.Command('ls', self.print_content, '', 'list content of current dir')
-        self.commands['cd'] = Tool.Command('cd', self.goto_idx, '<index/..>', 'change dir')
+        self.commands['cd'] = Tool.Command('cd', self.goto_idx, '<index>', 'change dir')
         # Download
-        self.commands['get#'] = Tool.Command('get#', self.download_all, '', 
-                                             'download all files in current dir')
-        self.commands['get']  = Tool.Command('get', self.download, '<index>', 'download a file')
+        self.commands['get']  = Tool.Command('get', self.download, '<index>', 'download files')
         # Upload
-        self.commands['post'] = Tool.Command('post', self.upload, '', 'upload file(s) to current dir')
+        self.commands['post'] = Tool.Command('post', self.upload, '', 'upload files to current dir')
         # Delete
-        self.commands['del#'] = Tool.Command('del#', self.delete_all, '',
-                                             'delete all files in current dir')
-        self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete a file')
+        self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete files')
         # Evaluate
         self.commands['eval#'] = Tool.Command('eval#', self.evaluate_all, '', 
                                               'upload evaluations from xml')
@@ -360,79 +357,62 @@ class FileTree(Tool):
         self.refresh()
 
 
-    def download(self, idx, folder = None):
+    def download(self, idx):
 
-        leaf = self._get_leaf(idx)
-        if not leaf:
-            return
+        idx = idx.strip().split()
+        leafs = []
+        if idx[0] == '*':
+            leafs = self.cwd.children['leafs']
+        else:
+            leafs = [self._get_leaf(i) for i in idx]
 
-        if not leaf.url: # Assignments may have no url
-            print(col(' !! %s has not uploaded the assignment yet' % leaf.title, c.ERR))
-            return
-
-        if not folder:
-            folder = self._get_local_folder()
-            if not folder:
-                return
-
-        fname = unquote_plus(os.path.basename(leaf.url))
-        if self.cwd.is_task:
-            fname = '%s_%s' % (leaf.lastname, fname)
-        fname = os.path.join(folder, fname)
-
-        with open(fname, 'wb') as local:
-            copyfileobj(self.opener.open(self.ROOT + leaf.url), local)
-        print(col(' * ', c.ERR) + fname)
-
-
-    def download_all(self):
-        
-        nfiles = len(self.cwd.children['leafs'])
-        if not nfiles:
+        if not leafs:
             print(col(' !! no files in current dir', c.ERR))
             return
-            
+
         folder = self._get_local_folder()
         if not folder:
             return
 
-        offset = len(self.cwd.children['branches'])
-        for idx in range(offset, offset + nfiles):
-            self.download(idx, folder)
+        for leaf in leafs:
+            if not leaf.url: # Assignments may have no url
+                print(col(' !! %s has not uploaded the assignment yet' % leaf.title, c.ERR))
+                continue
 
-    
-    def delete(self, idx, batch = False):
+            fname = unquote_plus(os.path.basename(leaf.url))
+            if self.cwd.is_task:
+                fname = '%s_%s' % (leaf.lastname, fname)
+            fname = os.path.join(folder, fname)
 
-        leaf = self._get_leaf(idx)
-        if not leaf or not leaf.url:
-            return
-
-        if not 'multi_delete' in leaf.menu:
-            print(col(' !! not authorized to delete (%s)' % leaf.title))
-            return
-
-        self.opener.open(self.TARGET + '/links/' + leaf.menu['multi_delete'].url)
-        print(col(' * ', c.ERR) + leaf.title)
-
-        if not batch:
-            self.refresh()
+            with open(fname, 'wb') as local:
+                copyfileobj(self.opener.open(self.ROOT + leaf.url), local)
+            print(col(' * ', c.ERR) + fname)
 
 
-    def delete_all(self):
+    def delete(self, idx):
 
-        nfiles = len(self.cwd.children['leafs'])
-        if not nfiles:
-            print(col(' !! no files in current dir', c.ERR))
-            return
-            
-        yn = ''
-        while yn not in ('y', 'n'):
-            yn = input('> delete all in %s? (y/n) ' % self.cwd.path)
+        idx = idx.strip().split()
+        leafs = []
+        if idx[0] == '*':
+            leafs = self.cwd.children['leafs']
+            yn = ''
+            while yn not in ('y', 'n'):
+                yn = input('> delete all in %s? (y/n) ' % self.cwd.path)
+            if yn == 'n':
+                return
+        else:
+            leafs = [self._get_leaf(i) for i in idx]
 
-        if yn == 'y':
-            offset = len(self.cwd.children['branches'])
-            for idx in range(offset, offset + nfiles):
-                self.delete(idx, True)
+        for leaf in leafs:
+            if not leaf.url:
+                continue
+
+            if not 'multi_delete' in leaf.menu:
+                print(col(' !! not authorized to delete (%s)' % leaf.title))
+                continue
+
+            self.opener.open(self.TARGET + '/links/' + leaf.menu['multi_delete'].url)
+            print(col(' * ', c.ERR) + leaf.title)
 
         self.refresh()
 

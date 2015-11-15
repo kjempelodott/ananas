@@ -56,14 +56,14 @@ def enter_loop(tool):
         if not command:
             return
 
-        arg = []
+        args = []
         try:
-            command, arg = command.split()
-            arg = [arg]
+            command, arg = command.split(' ', 1)
+            args.append(arg)
         except:
             pass
 
-        tool.commands[command](*arg)
+        tool.commands[command](*args)
 
     do()
 
