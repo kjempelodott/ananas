@@ -10,13 +10,13 @@ Fronter is a teaching platform, and I don't like it. I like Python.
 
 #### How to use it
 
-Run it from the terminal like this:
+Run it in the terminal like this:
 
 ```
 ./pyshell
 ```
 
-It will ask for username and password. If login succeeds, you will be asked to select a room:
+It will ask for username and password. If login succeeds, you are asked to select a room:
 
 ```
 ./pyshell 
@@ -34,7 +34,7 @@ return <Ctrl-D>
 > select a room <index> :
 ```
 
-Currently, there are two tools implemented: members and filetree. After selecting a room, you will be asked to select a tool:
+Currently, there are two tools implemented: Members and FileTree. After selecting a room, you will be asked to select a tool:
 
 ```
 > select a room <index> : 5
@@ -47,6 +47,10 @@ return <Ctrl-D>
 [3  ] Lego Watt-vekt
 > select a tool <index> :
 ```
+
+Note that you can alway go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort an interactive command like `mail` or `eval`, press `Ctrl-C`.
+
+##### Members tool
 
 In the example, the first one is a members tool while the last three are filetree tools. Choosing the members tool (index 0), we are presented with a help text listing all available commands:
 
@@ -63,11 +67,10 @@ mail     <index/label>   send mail to a (group of) member(s)
 > 
 ```
 
-The members tool lets you list all members of the room and compose an email to one or a group of member(s). Before you try to send emails, please make sure that the correct server, domain and port is set in `fronter.conf`. Let's list all the members:
+The Members tool lets you list all members of the room and compose an email to one or a group of member(s). Before you try to send emails, please make sure that the correct server, domain and port are set in `fronter.conf`. Let's list all the members:
 
 ```
 > ls
-ls
 [0  ] Tro, Lo                             lol@jiofwq.com                     eier
 [1  ] Blarg, Blæh                         blah@nfiha.com                     slette
 [2  ] Ku, Mø                              møøø@nifwq.com                     skrive
@@ -75,7 +78,7 @@ ls
 >
 ```
 
-The last column is the group label. The command `mail` can either take a space separated list of indices or a label as argument. It also understands inverse label selection, `![label]`. Examples:
+The last column shows the group label. The command `mail` can either take a space separated list of indices or a label as argument. It also understands inverse label selection, `![label]`. Examples:
 
 ```
 > mail 0 3     # selects 0 and 3
@@ -83,9 +86,9 @@ The last column is the group label. The command `mail` can either take a space s
 > mail eier    # selects 0
 ```
 
-Note that you can alway go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort an interactive command like `mail`, press `Ctrl-C`.
+##### FileTree tools
 
-The filetree tools allows you to traverse folder, and list, download, delete, upload and evaluate files:
+The FileTree tools allows you to traverse folders, and list, download, delete, upload and evaluate files:
 
 ```
 > select a tool <index> : 1
@@ -105,19 +108,19 @@ eval     <index>         read and edit evaluation
 >
 ```
 
-The commands `ls` and `cd` are similar to the shell commands. Note that `ls` does not take any arguments. It will only list the contents of the current directory. Let's try it:
+The commands `ls` and `cd` are similar to the shell commands. Note that `ls` does not take any arguments. It only list the contents of the current directory. Let's try it:
 
 ```
 > ls
 /
-[0  ] **Kursinfo**
-[1  ] **Matlab**
-[2  ] **test**
+[0  ] Kursinfo
+[1  ] Matlab
+[2  ] test
 [3  ] readme.txt                                                   eval, del, get
 > 
 ```
 
-Directories are shown in bold text. Let's enter the **test** (index 2) directory:
+Directories are shown in bold text (well, obviously not in this README ... ). Let's enter the **test** (index 2) directory:
 
 ```
 > cd 2
@@ -129,11 +132,11 @@ Directories are shown in bold text. Let's enter the **test** (index 2) directory
 >
 ```
 
-The rightmost column shows the available actions for each file. The command `eval` is really only useful for deliveries, so we will skip that for now. The commands `del` and `get` will either delete or download the file. They will either take a list of indices or wildcard '*' as argument. The wildcard will select all files for download/deletion. For download, you will be asked where to download the files:
+The rightmost column shows the available actions for each file. The command `eval` is really only useful for deliveries, so we will skip that for now. The commands `del` and `get` deletes or downloads the file. They take either a list of indices or wildcard * as argument. The wildcard selects all files for download/deletion. For download, you will be asked where to download the files:
 
 ```
 > get 0
-> select folder (/home/siljehra/git/ananas) : /tmp/
+> select folder (/home/myuser) : /tmp/
  * /tmp/SG5Vspreg.pdf
 > 
 ```
@@ -155,18 +158,18 @@ Let's try to upload some shit:
 
 ```
 > post
-> select file(s) (/home/siljehra/git/ananas) : /tmp/SG5Vspreg.pdf
+> select file(s) (/home/myuser) : /tmp/SG5Vspreg.pdf
  * /tmp/SG5Vspreg.pdf
 > ls
 /testmappe/
 [0  ] SG5Vspreg.pdf                                                eval, del, get
 ```
 
-Wohoo! Note that file select accepts wildcard. For example, `/home/myuser/blah/*.pdf` will upload all pdf-files from `./blah/`.
+Wohoo! Note that file select accepts wildcard. For example, `./blah/*.pdf` will upload all pdf-files from `./blah/`.
        
 If you have IPython installed, you will probably find the tab completion useful for selecting a folder and for uploading files.
 
-As mentioned before, `eval` is intended for deliveries. This lets admins evaluate, grade and comment on student deliveries. Let's go back and choose a filetree with deliveries:
+As mentioned before, `eval` is intended for deliveries. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with deliveries:
 
 ```
 > select a tool <index> : 2
@@ -182,8 +185,8 @@ As mentioned before, `eval` is intended for deliveries. This lets admins evaluat
 /test/
 [0  ] NA          Lo Tro
 [1  ] 2015-02-13  Mø Ku
-[2  ] NA	  Blæh Blarg
-[3  ] NA	  Flofs Flofsesen
+[2  ] NA          Blæh Blarg
+[3  ] NA          Flofs Flofsesen
 >
 ```
 
