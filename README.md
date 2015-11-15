@@ -48,11 +48,11 @@ return <Ctrl-D>
 > select a tool <index> :
 ```
 
-Note that you can alway go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort an interactive command like `mail` or `eval`, press `Ctrl-C`.
+Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort an interactive command like `mail` or `eval`, press `Ctrl-C`.
 
 ##### Members tool
 
-In the example, the first one is a members tool while the last three are filetree tools. Choosing the members tool (index 0), we are presented with a help text listing all available commands:
+In the example above, the first entry is a Members tool while the last three are FileTree tools. Choosing the Members tool (index 0), we are presented with a help text listing all available commands:
 
 ```
 > select a tool <index> : 0
@@ -78,7 +78,7 @@ The Members tool lets you list all members of the room and compose an email to o
 >
 ```
 
-The last column shows the group label. The command `mail` can either take a space separated list of indices or a label as argument. It also understands inverse label selection, `![label]`. Examples:
+The last column shows the group label. The `mail` command can either take a space separated list of indices or a label as argument. It also understands inverse label selection, `![label]`. Examples:
 
 ```
 > mail 0 3     # selects 0 and 3
@@ -108,7 +108,7 @@ eval     <index>         read and edit evaluation
 >
 ```
 
-The commands `ls` and `cd` are similar to the shell commands. Note that `ls` does not take any arguments. It only list the contents of the current directory. Let's try it:
+The `ls` and `cd` commands are similar to the shell commands. Note that `ls` does not take any arguments. It only list the contents of the current directory. Let's try it:
 
 ```
 > ls
@@ -132,7 +132,7 @@ Directories are shown in bold text (well, obviously not in this README ... ). Le
 >
 ```
 
-The rightmost column shows the available actions for each file. The command `eval` is really only useful for deliveries, so we will skip that for now. The commands `del` and `get` deletes or downloads the file. They take either a list of indices or wildcard * as argument. The wildcard selects all files for download/deletion. For download, you will be asked where to download the files:
+The rightmost column shows the available actions for each file. The `eval` command is really only useful for assignments, so we will skip that for now. The `del` and `get` commands deletes or downloads the file. They take either a list of indices or wildcard * as argument. The wildcard selects all files for download/deletion. For download, you will be asked where to download the files:
 
 ```
 > get 0
@@ -145,12 +145,12 @@ Now, let's delete all the crap in **test**:
 
 ```
 > del *
-> delete all in /testmappe/? (y/n) y
+> delete all in /test/? (y/n) y
  * SG5Vspreg.pdf
  * IR_TXRX_EXTREFLCT.pdf
  * ExtreflctParts.txt
 > ls
-/testmappe/
+/test/
 > 
 ```
 
@@ -161,15 +161,15 @@ Let's try to upload some shit:
 > select file(s) (/home/myuser) : /tmp/SG5Vspreg.pdf
  * /tmp/SG5Vspreg.pdf
 > ls
-/testmappe/
+/test/
 [0  ] SG5Vspreg.pdf                                                eval, del, get
 ```
 
-Wohoo! Note that file select accepts wildcard. For example, `./blah/*.pdf` will upload all pdf-files from `./blah/`.
+Wohoo! Note that file select accepts wildcards. For example, `./blah/*.pdf` will upload all pdf-files from `./blah/`.
        
-If you have IPython installed, you will probably find the tab completion useful for selecting a folder and for uploading files.
+If you have IPython installed, you will probably find its tab completion capabilities useful for selecting a folder and for uploading files.
 
-As mentioned before, `eval` is intended for deliveries. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with deliveries:
+As mentioned before, `eval` is intended for assigments. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with deliveries:
 
 ```
 > select a tool <index> : 2
@@ -190,7 +190,7 @@ As mentioned before, `eval` is intended for deliveries. This lets admins evaluat
 >
 ```
 
-Note that if you're a student, you will only see your own assigment, and you will only be able to **read** the evaluation. There is just one student that has uploaded her assigment ... To download it, type `get 1`. Okay, looks like a nice assigment. Let's evaluate it:
+Note that if you're a student, you will only see your own assigment, and you will only be able to **read** the evaluation. There is only one student that has uploaded her assigment ... To download it, type `get 1`. Okay, looks like a nice assigment. Let's evaluate it:
 
 ```
 > eval 1
