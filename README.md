@@ -1,6 +1,6 @@
-## Fronter shell in Python
+### Fronter shell in Python
 
-Fronter is a teaching platform, and I don't like it. I like Python.
+The purpose of this is to minimize the number of puppy deaths. Every time you login to the fronter webpage, a puppy dies. Every time you login to fronter with this tool, however, a puppy gets a treat.
 
 #### Requirements
 
@@ -214,3 +214,4 @@ Nice work!
 #### TODO
 
 * Edit multiple eval/grade/comments (e.g. read from xml)
+* Make a test tool? Maybe daunting, but tempting
