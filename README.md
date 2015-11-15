@@ -120,7 +120,7 @@ The `ls` and `cd` commands are similar to the shell commands. Note that `ls` doe
 > 
 ```
 
-Directories are shown in bold text (well, obviously not in this README ... ). Let's enter the **test** (index 2) directory:
+Directories are shown in bold text (well, obviously not in this README ... ). To go up one directory, type `cd ..`. But since we're already at root, let's enter the **test** (index 2) directory:
 
 ```
 > cd 2
@@ -166,7 +166,7 @@ Let's try to upload some shit:
 ```
 
 Wohoo! Note that file select accepts wildcards. For example, `./blah/*.pdf` will upload all pdf-files from `./blah/`.
-       
+
 If you have IPython installed, you will probably find its tab completion capabilities useful for selecting a folder and for uploading files.
 
 As mentioned before, `eval` is intended for assigments. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with deliveries:
