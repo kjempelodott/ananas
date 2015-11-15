@@ -116,9 +116,6 @@ class FileTree(Tool):
 
     class Branch(object):
 
-        _imp = ('multi_delete', 'new_comment')
-        Menu = namedtuple('Menu', ['name', 'url'])
-
         def __init__(self, title, treeid, parent = None):
 
             self.title = title
@@ -131,28 +128,33 @@ class FileTree(Tool):
         def str(self):
             return col(self.title, c.DIR)
 
-        def make_menu(self, menu = ''):
-            for item in menu.split(','):
-                try:
-                    key, url = item.split('^') # ValueError
-                    action = url.split('action=')[1].split('&')[0] # IndexError
-                    assert(action in FileTree.Branch._imp)
-                    self.menu[action] = FileTree.Branch.Menu(name = key.strip('"'), url = url)
-                except (AssertionError, ValueError, IndexError):
-                    continue
-
 
     class Leaf(Branch):
+
+        _imp = {'multi_delete' : 'del', 'new_comment' : 'eval', 'get' : 'get'}
+
+        Menu = namedtuple('Menu', ['name', 'url'])
 
         def __init__(self, title, url, parent):
 
             self.title = title
             self.url = url
             self.parent = parent
-            self.menu = {}
+            self.menu = {'get' : None}
 
         def str(self):
-            return self.title
+            return '%-60s %s' % (self.title,
+                ', '.join([FileTree.Leaf._imp[a] for a  in self.menu.keys()]))
+
+        def make_menu(self, menu = ''):
+            for item in menu.split(','):
+                try:
+                    key, url = item.split('^') # ValueError
+                    action = url.split('action=')[1].split('&')[0] # IndexError
+                    assert(action in FileTree.Leaf._imp)
+                    self.menu[action] = FileTree.Leaf.Menu(name = key.strip('"'), url = url)
+                except (AssertionError, ValueError, IndexError):
+                    continue
 
 
     class Delivery(Leaf):
@@ -192,8 +194,9 @@ class FileTree(Tool):
         # Upload
         self.commands['post'] = Tool.Command('post', self.upload, '', 'upload file(s) to current dir')
         # Delete
-        self.commands['del#'] = Tool.Command('del#', self.delete_all, '', 'delete all in current dir')
-        self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete a file/dir')
+        self.commands['del#'] = Tool.Command('del#', self.delete_all, '',
+                                             'delete all files in current dir')
+        self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete a file')
         # Evaluate
         self.commands['eval#'] = Tool.Command('eval#', self.evaluate_all, '', 
                                               'upload evaluations from xml')
@@ -260,7 +263,6 @@ class FileTree(Tool):
                 assert(not refresh)
                 tid = int(re.findall('treeid=([0-9]+)', href)[0])
                 self.cwd.children['branches'].append(FileTree.Branch(name, tid, self.cwd))
-                self.cwd.children['branches'][-1].make_menu(menu)
             except:
                 if 'files.phtml' in href:
                     self.cwd.children['leafs'].append(FileTree.Leaf(name, href, self.cwd))
@@ -297,9 +299,8 @@ class FileTree(Tool):
     def print_content(self):
 
         print(col(self.cwd.path, c.HEAD))
-        for items in (self.cwd.children['branches'], self.cwd.children['leafs']):
-            for idx, item in enumerate(items):
-                print(col('[%-3i] ' % idx, c.HL) + item.str())
+        for idx, item in enumerate(self.cwd.children['branches'] + self.cwd.children['leafs']):
+            print(col('[%-3i] ' % idx, c.HL) + item.str())
         
 
     def goto_idx(self, idx):
@@ -361,8 +362,7 @@ class FileTree(Tool):
 
     def download(self, idx, folder = None):
 
-        leaf = self.cwd.children['leafs'][int(idx)]
-
+        leaf = self._get_leaf(idx)
         if not leaf.url: # Assignments may have no url
             print(col(' !! %s has not uploaded the assignment yet' % leaf.title, c.ERR))
             return
@@ -388,13 +388,14 @@ class FileTree(Tool):
             return
             
         folder = self.get_local_folder()
-        for idx in range(nfiles):
+        offset = len(self.cwd.children['branches'])
+        for idx in range(offset, offset + nfiles):
             self.download(idx, folder)
 
     
     def delete(self, idx, batch = False):
 
-        leaf = self.cwd.children['leafs'][int(idx)]
+        leaf = self._get_leaf(idx)
         if not leaf.url:
             return
 
@@ -421,7 +422,8 @@ class FileTree(Tool):
             yn = input('> delete all in %s? (y/n) ' % self.cwd.path)
 
         if yn == 'y':
-            for idx in range(nfiles):
+            offset = len(self.cwd.children['branches'])
+            for idx in range(offset, offset + nfiles):
                 self.delete(idx, True)
 
         self.refresh()
@@ -495,7 +497,7 @@ class FileTree(Tool):
                 while True:
                     try:
                         comment += input('') + '\n'
-                    except EOFError:
+                    except KeyboardInterrupt:
                         break
                 print('"""')
 
@@ -536,7 +538,6 @@ class FileTree(Tool):
                 print(col(' !! %s does not exist' % userinput, c.ERR))
             else:
                 print(col(' !! failed to read %s' % userinput, c.ERR))
-            raise EOFError
 
 
     def get_local_folder(self):
@@ -553,6 +554,16 @@ class FileTree(Tool):
             assert(os.access(folder, os.W_OK))
         except AssertionError:
             print(col(' !! failed to create dir', c.ERR))
-            raise EOFError
+            raise KeyboardInterrupt
 
         return folder
+
+
+    def _get_leaf(self, idx):
+
+        idx = int(idx) - len(self.cwd.children['branches'])
+        if idx < 0:
+            print(col(' !! not a file', c.ERR))
+            raise KeyboardInterrupt
+
+        return self.cwd.children['leafs'][idx]
