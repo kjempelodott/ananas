@@ -3,8 +3,9 @@ from datetime import datetime
 from glob import glob
 from collections import namedtuple, OrderedDict
 from shutil import copyfileobj
-from lxml import html
+from lxml import html, etree
 from plugins import Mailserver, Color
+from difflib import SequenceMatcher
 
 if sys.version_info[0] == 2:
     from urllib import urlencode, unquote_plus
@@ -197,7 +198,7 @@ class FileTree(Tool):
         # Evaluate
         self.commands['eval#'] = Tool.Command('eval#', self.evaluate_all, '', 
                                               'upload evaluations from xml')
-        self.commands['eval']  = Tool.Command('eval', self.evaluation, '<index>', 
+        self.commands['eval']  = Tool.Command('eval', self.evaluate, '<index>',
                                               'read and edit evaluation')
 
 
@@ -260,7 +261,7 @@ class FileTree(Tool):
                 assert(not refresh)
                 tid = int(re.findall('treeid=([0-9]+)', href)[0])
                 self.cwd.children['branches'].append(FileTree.Branch(name, tid, self.cwd))
-            except:
+            except AssertionError:
                 if 'files.phtml' in href:
                     self.cwd.children['leafs'].append(FileTree.Leaf(name, href, self.cwd))
                     self.cwd.children['leafs'][-1].make_menu(menu)
@@ -444,7 +445,7 @@ class FileTree(Tool):
             print(col(eval_span.text, c.HL) + ' ' + eval_text)
 
 
-    def evaluation(self, idx, comment = '', grade = '', evaluation = '', batch = False):
+    def evaluate(self, idx, comment = '', grade = '', evaluation = '', batch = False):
 
         leaf = self.cwd.children['leafs'][int(idx)]
         if not 'new_comment' in leaf.menu:
@@ -455,7 +456,7 @@ class FileTree(Tool):
         xml = html.fromstring(response.read())
         evals = xml.xpath('//input[@type="radio"]')
 
-        batch = batch and comment and grade and evaluation
+        batch = batch and comment and evaluation
 
         if not batch: 
 
@@ -491,13 +492,28 @@ class FileTree(Tool):
 
             else:
                 return
-                
+
+        else: # Get the correct evaluation
+            evaluation = evaluation.lower()
+            _cmp = []
+
+            for item in evals:
+                _cmp.append(item.getnext().text.lower())
+                if evaluation == _cmp[-1]:
+                    evaluation = item.get('value')
+                    break
+            else:
+                score = [SequenceMatcher(None, evaluation, item).ratio() for item in _cmp]
+                win = max(score)
+                idx = score.index(win)
+                evaluation = evals[idx].get('value')
+
         # Finally, upload stuff
 
         url, payload = self.prepare_form(xml)
 
         payload['do_action']       = 'comment_save'
-        payload['element_comment'] = comment
+        payload['element_comment'] = comment.encode('utf-8')
         payload['grade']           = grade
         payload['aproved']         = evaluation
 
@@ -505,22 +521,51 @@ class FileTree(Tool):
 
 
     def evaluate_all(self):
-        print('not implemented yet')
-        return
-        userinput = input('> input comments file : ')
+
+        if not self.cwd.children['leafs']:
+            print(col('!! nothing to evaluate', c.ERR))
+            return
+
+        folder = os.getcwd()
+        userinput = input('> input evaluation file (%s) : ' % folder)
         try:
+            batch = []
+
             with open(userinput, 'r') as f:
-                content = XMLParser(f.read())
+                tree = etree.fromstring(f.read())
 
- #          for 
+                for student in tree:
 
- #             print(name)   
- #             print(comment[0:20], '...')
- #             print('grade:', grade)
+                    name, idx = student.get('name').lower(), None
+                    _cmp = []
+                    for leaf in self.cwd.children['leafs']:
+                        _cmp.append(leaf.title.lower())
+                        if _cmp[-1] == name:
+                            idx, name = len(_cmp) - 1, leaf.title
+                    else:
+                        score = [SequenceMatcher(None, name, item).ratio() for item in _cmp]
+                        win = max(score)
+                        idx = score.index(win)
+                        name = self.cwd.children['leafs'][idx].title
 
- #          input(ok? y/n)
+                    evl = student.get('eval')
+                    grade = student.get('grade')
 
-            
+                    comment = [line.strip() for line in
+                               student.getchildren()[0].text.strip().split('\n')]
+
+                    print('%-45s %s' % (col(name, c.HL, True), comment[0][:30] + ' ...'))
+                    batch.append((idx, '\n'.join(comment), grade, evl, True))
+
+            yn = ''
+            while yn not in ('y', 'n'):
+                yn = input('> upload evaluations? (y/n) ')
+            if yn == 'n':
+                return
+
+            for b in batch:
+                self.evaluate(*b)
+
         except OSError as oe:
             if (oe.errno == 2):
                 print(col(' !! %s does not exist' % userinput, c.ERR))

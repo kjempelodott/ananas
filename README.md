@@ -213,5 +213,4 @@ Nice work!
 
 #### TODO
 
-* Edit multiple eval/grade/comments (e.g. read from xml)
 * Make a test tool? Maybe daunting, but tempting
