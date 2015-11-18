@@ -494,7 +494,7 @@ class FileTree(Tool):
                     fname = os.path.join(folder, fname)
 
                     with open(fname, 'wb') as local:
-                        copyfileobj(self.opener.open(self.ROOT + url), local)
+                        copyfileobj(self.opener.open(url), local)
                     print(col(' * ', c.ERR) + fname)
 
                 return
