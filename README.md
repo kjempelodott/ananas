@@ -2,14 +2,14 @@
 
 The purpose of this is to minimize the number of puppy deaths. Every time you login to the fronter webpage, a puppy dies. Every time you login to fronter with this tool, however, a puppy gets a treat.
 
-* [Requirements](README.md#requirements)
-* [How to use it](README.md#how-to-use-it)
-  * [Members tool](README.md#members-tool)
-  * [FileTree tools](README.md#filetree-tools)
-    * [Navigating](README.md#navigating)
-    * [Download, upload and delete](README.md#download-upload-and-delete)
-    * [Evaluating assignments](README.md#evaluating-assignments)
-    * [Multiple evaluations](README.md#multiple-evaluations)
+* [Requirements](https://github.com/kjempelodott/ananas#requirements)
+* [How to use it](https://github.com/kjempelodott/ananas#how-to-use-it)
+  * [Members tool](https://github.com/kjempelodott/ananas#members-tool)
+  * [FileTree tools](https://github.com/kjempelodott/ananas#filetree-tools)
+    * [Navigating](https://github.com/kjempelodott/ananas#navigating)
+    * [Download, upload and delete](https://github.com/kjempelodott/ananas#download-upload-and-delete)
+    * [Evaluating assignments](https://github.com/kjempelodott/ananas#evaluating-assignments)
+    * [Multiple evaluations](https://github.com/kjempelodott/ananas#multiple-evaluations)
 
 #### Requirements
 
