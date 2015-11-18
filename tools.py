@@ -224,7 +224,7 @@ class FileTree(Tool):
 
         for tr in tr_odd + tr_even:
             try:
-                name   = tr.xpath('td[2]/label')[0] # IndexError
+                name   = tr.xpath('td[2]/label')[0] # IndexError (not an assigment row)
                 url    = tr.xpath('td[3]')[0]
                 date   = tr.xpath('td[4]/label')[0]
                 status = tr.xpath('td[5]/img')
@@ -235,7 +235,7 @@ class FileTree(Tool):
 
                 menu = ''
                 try:
-                    date = datetime.strptime(date.text.strip(),'%Y-%m-%d') # ValueError
+                    date = datetime.strptime(date.text.strip(),'%Y-%m-%d') # ValueError (not delivered)
                     menu_id = url.xpath('a[@class="ez-menu"]')[0].get('name')
                     url = url.xpath('a[@class=""]')[0].get('href').strip()
                     status = status[0].get('src').split('/')[-1].split('.')[0].replace('_', ' ')
@@ -328,16 +328,20 @@ class FileTree(Tool):
         payload = dict((i.name, i.get('value')) for i in inputs)
 
         url = form.get('action')
+        if not url.startswith(self.TARGET):
+            url = self.TARGET + url.lstrip('..')
+
         return url, payload
 
 
-    def upload(self):
+    def upload(self, assignment_xml = None, *comments_file):
 
-        folder = os.getcwd()
-        userinput = input('> select file(s) (%s) : ' % folder)
-        files = []
+        files, userinput = [], ''
+        if not comments_file:
+            folder = os.getcwd()
+            userinput = input('> select file(s) (%s) : ' % folder)
 
-        for f in glob(userinput):
+        for f in glob(userinput) + list(comments_file):
             try:
                 assert(os.access(f, os.R_OK))
                 files.append(f)
@@ -347,7 +351,13 @@ class FileTree(Tool):
         if not files:
             return
 
-        url = self.TARGET +'/links/structureprops.phtml?php_action=file&treeid=%i' % self.cwd.treeid
+        url = ''
+        if assignment_xml is not None:
+            url = self.TARGET + \
+                assignment_xml.xpath('//table[@class="archive-inner"]//a')[-1].get('href').lstrip('..')
+        else:
+            url = self.TARGET + \
+                '/links/structureprops.phtml?php_action=file&treeid=%i' % self.cwd.treeid
         response = self.opener.open(url)
 
         xml = html.fromstring(response.read())
@@ -449,7 +459,7 @@ class FileTree(Tool):
             print(col(eval_span.text, c.HL) + ' ' + eval_text)
 
 
-    def evaluate(self, idx, comment = '', grade = '', evaluation = '', batch = False):
+    def evaluate(self, idx, comment = '', cfile = None, grade = '', evaluation = '', batch = False):
 
         leaf = self._get_leaf(idx)
         if not leaf:
@@ -462,8 +472,6 @@ class FileTree(Tool):
         response = self.opener.open(self.TARGET + '/links/' + leaf.menu['new_comment'].url)
         xml = html.fromstring(response.read())
         evals = xml.xpath('//input[@type="radio"]')
-
-        batch = batch and comment and evaluation
 
         if not batch: 
 
@@ -497,6 +505,9 @@ class FileTree(Tool):
                         break
                 print('"""')
 
+                print('> upload file with comments? (leave blank if not)')
+                self.upload(xml)
+
             else:
                 return
 
@@ -511,9 +522,12 @@ class FileTree(Tool):
                     break
             else:
                 score = [SequenceMatcher(None, evaluation, item).ratio() for item in _cmp]
-                win = max(score)
-                idx = score.index(win)
+                win   = max(score)
+                idx   = score.index(win)
                 evaluation = evals[idx].get('value')
+
+            if cfile:
+                self.upload(xml, cfile)
 
         # Finally, upload stuff
 
@@ -525,6 +539,9 @@ class FileTree(Tool):
         payload['aproved']         = evaluation
 
         self.opener.open(url, urlencode(payload).encode('ascii'))
+
+        if not batch:
+            self.refresh()
 
 
     def evaluate_all(self):
@@ -544,6 +561,10 @@ class FileTree(Tool):
                 for student in tree:
 
                     name, idx = student.get('name').lower(), None
+                    if not name:
+                        print(col('!! missing student name', c.ERR))
+                        continue
+
                     _cmp = []
                     for leaf in self.cwd.children['leafs']:
                         _cmp.append(leaf.title.lower())
@@ -551,18 +572,26 @@ class FileTree(Tool):
                             idx, name = len(_cmp) - 1, leaf.title
                     else:
                         score = [SequenceMatcher(None, name, item).ratio() for item in _cmp]
-                        win = max(score)
-                        idx = score.index(win)
-                        name = self.cwd.children['leafs'][idx].title
+                        win   = max(score)
+                        idx   = score.index(win)
+                        name  = self.cwd.children['leafs'][idx].title
 
-                    evl = student.get('eval')
-                    grade = student.get('grade')
+                    evl     = student.get('eval') or ''
+                    grade   = student.get('grade') or ''
+                    comment = cfile = ''
 
-                    comment = [line.strip() for line in
-                               student.getchildren()[0].text.strip().split('\n')]
+                    for elem in student:
+                        if elem.tag == 'file':
+                            cfile = elem.text or ''
+                        elif elem.tag == 'comment':
+                            comment = elem.text or ''
+                            comment = [line.strip() for line in comment.split('\n')]
+
+                    if not cfile and not comment:
+                        print(col('!! no comment or comments file (%s)' % name, c.ERR))
 
                     print('%-45s %s' % (col(name, c.HL, True), comment[0][:30] + ' ...'))
-                    batch.append((idx, '\n'.join(comment), grade, evl, True))
+                    batch.append((idx, '\n'.join(comment), cfile, grade, evl, True))
 
             yn = ''
             while yn not in ('y', 'n'):
@@ -573,6 +602,8 @@ class FileTree(Tool):
             for b in batch:
                 self.evaluate(*b)
 
+            self.refresh()
+            
         except OSError as oe:
             if (oe.errno == 2):
                 print(col(' !! %s does not exist' % userinput, c.ERR))

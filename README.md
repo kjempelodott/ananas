@@ -2,6 +2,15 @@
 
 The purpose of this is to minimize the number of puppy deaths. Every time you login to the fronter webpage, a puppy dies. Every time you login to fronter with this tool, however, a puppy gets a treat.
 
+* [Requirements](README.md#requirements)
+* [How to use it](README.md#how-to-use-it)
+  * [Members tool](README.md#members-tool)
+  * [FileTree tools](README.md#filetree-tools)
+    * [Navigating](README.md#navigating)
+    * [Download, upload and delete](README.md#download-upload-and-delete)
+    * [Evaluating assignments](README.md#evaluating-assignments)
+    * [Multiple evaluations](README.md#multiple-evaluations)
+
 #### Requirements
 
 * Python >= 2.7
@@ -108,6 +117,8 @@ eval     <index>         read and edit evaluation
 >
 ```
 
+###### Navigating
+
 The `ls` and `cd` commands are similar to the shell commands. Note that `ls` does not take any arguments. It only list the contents of the current directory. Let's try it:
 
 ```
@@ -131,6 +142,8 @@ Directories are shown in bold text (well, obviously not in this README ... ). To
 [2  ] ExtreflctParts.txt                                           eval, del, get
 >
 ```
+
+###### Download, upload and delete
 
 The rightmost column shows the available actions for each file. The `eval` command is really only useful for assignments, so we will skip that for now. The `del` and `get` commands deletes or downloads the file. They take either a list of indices or wildcard * as argument. The wildcard selects all files for download/deletion. For download, you will be asked where to download the files:
 
@@ -169,6 +182,8 @@ Wohoo! Note that file select accepts wildcards. For example, `./blah/*.pdf` will
 
 If you have IPython installed, you will probably find its tab completion capabilities useful for selecting a folder and for uploading files.
 
+###### Evaluating assignments
+
 As mentioned before, `eval` is intended for assigments. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with deliveries:
 
 ```
@@ -183,10 +198,10 @@ As mentioned before, `eval` is intended for assigments. This lets admins evaluat
 > cd 0
 > ls
 /test/
-[0  ] NA          Lo Tro
-[1  ] 2015-02-13  Mø Ku
-[2  ] NA          Blæh Blarg
-[3  ] NA          Flofs Flofsesen
+[0  ] NA          Lo Tro                        NA
+[1  ] 2015-02-13  Mø Ku				not evaluated
+[2  ] NA          Blæh Blarg                    NA
+[3  ] NA          Flofs Flofsesen               NA
 >
 ```
 
@@ -208,8 +223,35 @@ Evaluering: Ikke evaluert
 """
 Nice work!
 """
+> upload file with comments? (leave blank if not)
+> select file(s) (/home/myuser) : 
 >
 ```
+
+It is often convenient to write comments directly in the assignment (e.g. by using a pdf editing tool), instead of referring to this page and that line and so on. The last prompt lets you upload a file. Just leave it blank if you only want to leave a text comment. 
+
+###### Multiple evaluations
+
+To automate the evaluation process even further, you can use the `eval#` command. It will take an xml as input. It must comply to the following format:
+
+```
+<THISTAGCANBEWHATEVERYOUWANT>
+  <student name="Tro Lo" grade="" eval="Godkjent">
+    <file>
+       "/home/myuser/fronter/tro_lo_comments.pdf"
+    </file>
+    <comment>
+      "Some additional comments ..."
+    </comment>
+  </student>
+  
+  <student ...
+  ...
+
+</THISTAGCANBEWHATEVERYOUWANT>
+```
+
+The only required attribute is `name`. You will get a warning if both `file` and `comment` are missing. If you are too stupid to correctly spell the name or evaluation string, fuzzy string matching will probably save your ass.
 
 #### TODO
 
