@@ -161,18 +161,19 @@ class FileTree(Tool):
 
     class Delivery(Leaf):
 
-        def __init__(self, firstname, lastname, url, date, parent):
+        def __init__(self, firstname, lastname, url, date, status, parent):
 
             self.firstname = firstname
             self.lastname = lastname
             self.title = '%s %s' % (firstname, lastname)
             self.url = url
             self.date = col(date.strftime('%Y-%m-%d'), c.HL, True) if date else col('NA', c.ERR, True)
+            self.status = col(status, c.HEAD) if status else col('NA', c.ERR)
             self.parent = parent
             self.menu = {}
 
         def str(self):
-            return '%-20s %s' % (self.date, self.title)
+            return '%-20s %-40s %s' % (self.date, self.title, self.status)
                 
 
     def __init__(self, client, url):
@@ -223,24 +224,27 @@ class FileTree(Tool):
 
         for tr in tr_odd + tr_even:
             try:
-                name = tr.xpath('td[2]/label')[0]
-                url = tr.xpath('td[3]')[0]
-                status = tr.xpath('td[4]/label')[0]
+                name   = tr.xpath('td[2]/label')[0] # IndexError
+                url    = tr.xpath('td[3]')[0]
+                date   = tr.xpath('td[4]/label')[0]
+                status = tr.xpath('td[5]/img')
 
                 first = name.text.strip()
-                last = name.getchildren()[0].text
-                last = '' if not last else last.strip()
+                last  = name.getchildren()[0].text
+                last  = '' if not last else last.strip()
 
-                date, menu = None, ''
+                menu = ''
                 try:
-                    date = datetime.strptime(status.text.strip(),'%Y-%m-%d')
+                    date = datetime.strptime(date.text.strip(),'%Y-%m-%d') # ValueError
                     menu_id = url.xpath('a[@class="ez-menu"]')[0].get('name')
-                    url = url.xpath('a[@class=""]')[0].get('href').strip() # ValueError
+                    url = url.xpath('a[@class=""]')[0].get('href').strip()
+                    status = status[0].get('src').split('/')[-1].split('.')[0].replace('_', ' ')
                     menu = menus[menu_id]
                 except ValueError:
-                    url = None
+                    url = date = status = None
 
-                self.cwd.children['leafs'].append(FileTree.Delivery(first, last, url, date, self.cwd))
+                self.cwd.children['leafs'].append(FileTree.Delivery(first, last, url,
+                                                                    date, status, self.cwd))
                 self.cwd.children['leafs'][-1].make_menu(menu)
 
             except IndexError:
@@ -447,7 +451,10 @@ class FileTree(Tool):
 
     def evaluate(self, idx, comment = '', grade = '', evaluation = '', batch = False):
 
-        leaf = self.cwd.children['leafs'][int(idx)]
+        leaf = self._get_leaf(idx)
+        if not leaf:
+            return
+
         if not 'new_comment' in leaf.menu:
             print(col(' !! commenting not available (%s)' % leaf.title))
             return

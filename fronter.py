@@ -126,7 +126,7 @@ class Fronter(object):
                 try:
                     href = tool.get('href')
                     toolid = int(re.findall('toolid=([0-9]+)', href)[0]) # IndexError
-                    title = tool.xpath('span[@class="tool-title"]')[0].text
+                    title = tool.xpath('span[@class="tool-title"]')[0].text # TODO: encoding is nuts
                     room.tools.append( [ title, Fronter._imp[toolid], href ] ) # KeyError
                 except (IndexError, KeyError):
                     continue
