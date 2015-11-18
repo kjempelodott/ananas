@@ -490,7 +490,7 @@ class FileTree(Tool):
                     if not folder:
                         return
 
-                    fname = unquote_plus(os.path.basename(url))
+                    fname = unquote_plus(cfile[0].text)
                     fname = os.path.join(folder, fname)
 
                     with open(fname, 'wb') as local:
