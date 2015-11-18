@@ -59,7 +59,7 @@ return <Ctrl-D>
 
 Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort an interactive command like `mail` or `eval`, press `Ctrl-C`.
 
-##### Members tool
+#### Members tool
 
 In the example above, the first entry is a Members tool while the last three are FileTree tools. Choosing the Members tool (index 0), we are presented with a help text listing all available commands:
 
@@ -95,7 +95,7 @@ The last column shows the group label. The `mail` command can either take a spac
 > mail eier    # selects 0
 ```
 
-##### FileTree tools
+#### FileTree tools
 
 The FileTree tools allows you to traverse folders, and list, download, delete, upload and evaluate files:
 
@@ -117,7 +117,7 @@ eval     <index>         read and edit evaluation
 >
 ```
 
-###### Navigating
+##### Navigating
 
 The `ls` and `cd` commands are similar to the shell commands. Note that `ls` does not take any arguments. It only list the contents of the current directory. Let's try it:
 
@@ -143,7 +143,7 @@ Directories are shown in bold text (well, obviously not in this README ... ). To
 >
 ```
 
-###### Download, upload and delete
+##### Download, upload and delete
 
 The rightmost column shows the available actions for each file. The `eval` command is really only useful for assignments, so we will skip that for now. The `del` and `get` commands deletes or downloads the file. They take either a list of indices or wildcard * as argument. The wildcard selects all files for download/deletion. For download, you will be asked where to download the files:
 
@@ -182,7 +182,7 @@ Wohoo! Note that file select accepts wildcards. For example, `./blah/*.pdf` will
 
 If you have IPython installed, you will probably find its tab completion capabilities useful for selecting a folder and for uploading files.
 
-###### Evaluating assignments
+##### Evaluating assignments
 
 As mentioned before, `eval` is intended for assigments. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with deliveries:
 
@@ -230,7 +230,7 @@ Nice work!
 
 It is often convenient to write comments directly in the assignment (e.g. by using a pdf editing tool), instead of referring to this page and that line and so on. The last prompt lets you upload a file. Just leave it blank if you only want to leave a text comment. 
 
-###### Multiple evaluations
+##### Multiple evaluations
 
 To automate the evaluation process even further, you can use the `eval#` command. It will take an xml as input. It must comply to the following format:
 
