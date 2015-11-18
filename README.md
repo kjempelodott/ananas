@@ -25,11 +25,11 @@ Run it in the terminal like this:
 ./pyshell
 ```
 
-It will ask for username and password. If login succeeds, you are asked to select a room:
+It will ask for username and password. Your local username will be used if you leave the username field blank. If login succeeds, you are asked to select a room:
 
 ```
 ./pyshell 
-Username: (kjempelodott) usernameAtFronter
+Username: (myuser) usernameAtFronter
 Password: 
 
 return <Ctrl-D>
