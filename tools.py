@@ -479,6 +479,24 @@ class FileTree(Tool):
 
             # Check if authorized to edit
             if not evals:
+
+                # Look for comments file
+                cfile = xml.xpath('//a[@target="_blank"]')
+                if cfile:
+
+                    url = self.TARGET + cfile[0].get('href').lstrip('..')
+                    print('> download file with comments? (interrupt with Ctrl-C)')
+                    folder = self._get_local_folder()
+                    if not folder:
+                        return
+
+                    fname = unquote_plus(os.path.basename(url))
+                    fname = os.path.join(folder, fname)
+
+                    with open(fname, 'wb') as local:
+                        copyfileobj(self.opener.open(self.ROOT + url), local)
+                    print(col(' * ', c.ERR) + fname)
+
                 return
 
             # Give option to edit

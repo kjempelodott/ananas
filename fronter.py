@@ -133,7 +133,6 @@ class Fronter(object):
 
             if not room.tools:
                 print(col(' !! no tools available', c.ERR))
-                raise KeyboardInterrupt
 
         except AttributeError: # Should only happen in interactive session
             print(col(' !! you must select a room first', c.ERR))
