@@ -199,7 +199,7 @@ As mentioned before, `eval` is intended for assigments. This lets admins evaluat
 > ls
 /test/
 [0  ] NA          Lo Tro                        NA
-[1  ] 2015-02-13  Mø Ku				not evaluated
+[1  ] 2015-02-13  Mø Ku                         not evaluated
 [2  ] NA          Blæh Blarg                    NA
 [3  ] NA          Flofs Flofsesen               NA
 >
@@ -228,7 +228,7 @@ Nice work!
 >
 ```
 
-It is often convenient to write comments directly in the assignment (e.g. by using a pdf editing tool), instead of referring to this page and that line and so on. The last prompt lets you upload a file. Just leave it blank if you only want to leave a text comment. 
+It is often convenient to write comments directly into the assignment (e.g. by using a pdf editing tool), instead of referring to this page and that line and so on. The last prompt lets you upload a file. Just leave it blank if you only want to upload a text comment. 
 
 ##### Multiple evaluations
 
@@ -252,7 +252,3 @@ To automate the evaluation process even further, you can use the `eval#` command
 ```
 
 The only required attribute is `name`. You will get a warning if both `file` and `comment` are missing. If you are too stupid to correctly spell the name or evaluation string, fuzzy string matching will probably save your ass.
-
-#### TODO
-
-* Make a test tool? Maybe daunting, but tempting
