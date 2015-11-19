@@ -490,8 +490,10 @@ class FileTree(Tool):
                     if not folder:
                         return
 
-                    fname = unquote_plus(cfile[0].text)
-                    fname = os.path.join(folder, fname)
+                    fileext = os.path.splitext(cfile[0].text)
+                    orig    = os.path.splitext(os.path.basename(leaf.url))[0]
+                    fname   = '%s_comments%s' % (orig, fileext)
+                    fname   = os.path.join(folder, fname)
 
                     with open(fname, 'wb') as local:
                         copyfileobj(self.opener.open(url), local)
