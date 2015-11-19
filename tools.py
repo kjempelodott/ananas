@@ -354,13 +354,16 @@ class FileTree(Tool):
         if not files:
             return
 
-        url = ''
+        url = self.TARGET
         if assignment_xml is not None:
-            url = self.TARGET + \
-                assignment_xml.xpath('//table[@class="archive-inner"]//a')[-2].get('href').lstrip('..')
+            hrefs = assignment_xml.xpath('//table[@class="archive-inner"]//a')
+            for href in hrefs:
+                href = href.get('href')
+                if 'personid' in href:
+                    url += href.lstrip('..')
+                    break
         else:
-            url = self.TARGET + \
-                '/links/structureprops.phtml?php_action=file&treeid=%i' % self.cwd.treeid
+            url += '/links/structureprops.phtml?php_action=file&treeid=%i' % self.cwd.treeid
 
         response = self.opener.open(url)
         xml = html.fromstring(response.read())
@@ -538,19 +541,24 @@ class FileTree(Tool):
                 return
 
         else: # Get the correct evaluation
-            evaluation = evaluation.lower()
-            _cmp = []
 
-            for item in evals:
-                _cmp.append(item.getnext().text.lower())
-                if evaluation == _cmp[-1]:
-                    evaluation = item.get('value')
-                    break
+            if not evaluation: # Set to 'not evaluated'
+                evaluation = evals[-1].get('value')
+
             else:
-                score = [SequenceMatcher(None, evaluation, item).ratio() for item in _cmp]
-                win   = max(score)
-                idx   = score.index(win)
-                evaluation = evals[idx].get('value')
+                evaluation = evaluation.lower()
+                _cmp = []
+
+                for item in evals:
+                    _cmp.append(item.getnext().text.lower())
+                    if evaluation == _cmp[-1]:
+                        evaluation = item.get('value')
+                        break
+                else:
+                    score = [SequenceMatcher(None, evaluation, item).ratio() for item in _cmp]
+                    win   = max(score)
+                    idx   = score.index(win)
+                    evaluation = evals[idx].get('value')
 
             if cfile:
                 self.upload(xml, cfile)
