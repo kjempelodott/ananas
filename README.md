@@ -232,7 +232,7 @@ It is often convenient to write comments directly into the assignment (e.g. by u
 
 ##### Multiple evaluations
 
-To automate the evaluation process even further, you can use the `eval#` command. It will take an xml as input. It must comply with the following format:
+To automate the evaluation process even further, you can use the `eval#` command. It will ask for an xml file. The xml file must comply with the following format:
 
 ```
 <THISTAGCANBEWHATEVERYOUWANT>
