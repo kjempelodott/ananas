@@ -19,13 +19,13 @@ The purpose of this is to minimize the number of puppy deaths. Every time you lo
 
 #### How to use it
 
-Run it in the terminal like this (Linux):
+Run it in the terminal like this (*nix):
 
 ```
 ./pyshell
 ```
 
-If you're using Windows or OS X or whatever, eh ... , try this:
+If you're using Windows or whatever, eh ... , try this:
 
 ```
 python pyshell
