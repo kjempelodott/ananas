@@ -19,10 +19,16 @@ The purpose of this is to minimize the number of puppy deaths. Every time you lo
 
 #### How to use it
 
-Run it in the terminal like this:
+Run it in the terminal like this (Linux):
 
 ```
 ./pyshell
+```
+
+If you're using Windows or OS X or whatever, eh ... , try this:
+
+```
+python pyshell
 ```
 
 It will ask for username and password. Your local username will be used if you leave the username field blank. If login succeeds, you are asked to select a room:
