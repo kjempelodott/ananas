@@ -357,12 +357,12 @@ class FileTree(Tool):
         url = ''
         if assignment_xml is not None:
             url = self.TARGET + \
-                assignment_xml.xpath('//table[@class="archive-inner"]//a')[-1].get('href').lstrip('..')
+                assignment_xml.xpath('//table[@class="archive-inner"]//a')[-2].get('href').lstrip('..')
         else:
             url = self.TARGET + \
                 '/links/structureprops.phtml?php_action=file&treeid=%i' % self.cwd.treeid
-        response = self.opener.open(url)
 
+        response = self.opener.open(url)
         xml = html.fromstring(response.read())
         url, payload = self.prepare_form(xml)
 
@@ -578,13 +578,14 @@ class FileTree(Tool):
 
         folder = os.getcwd()
         userinput = input('> input evaluation file (%s) : ' % folder)
+
         try:
             batch = []
 
             with open(userinput, 'r') as f:
                 tree = etree.fromstring(f.read())
 
-                for student in tree:
+                for student in [elem for elem in tree if elem.tag == 'student']:
 
                     name, idx = student.get('name').lower(), None
                     if not name:
@@ -607,17 +608,17 @@ class FileTree(Tool):
                     comment = cfile = ''
 
                     for elem in student:
-                        if elem.tag == 'file':
-                            cfile = elem.text or ''
-                        elif elem.tag == 'comment':
+                        if elem.tag == 'comment':
                             comment = elem.text or ''
-                            comment = [line.strip() for line in comment.split('\n')]
+                            comment = [line.strip() for line in comment.split('\n')][1:-1]
+                            cfile = elem.get('path') or ''
+                            break
 
                     if not cfile and not comment:
                         print(col('!! no comment or comments file (%s)' % name, c.ERR))
 
                     print('%-45s %s' % (col(name, c.HL, True), comment[0][:30] + ' ...'))
-                    batch.append((idx, '\n'.join(comment), cfile, grade, evl, True))
+                    batch.append((idx + 1, '\n'.join(comment), cfile, grade, evl, True))
 
             yn = ''
             while yn not in ('y', 'n'):
@@ -630,8 +631,12 @@ class FileTree(Tool):
 
             self.refresh()
             
-        except OSError as oe:
-            if (oe.errno == 2):
+        except etree.XMLSyntaxError as xe:
+            print(col(' !! error in xml', c.ERR))
+            print(xe)
+
+        except IOError as io:
+            if (io.errno == 2):
                 print(col(' !! %s does not exist' % userinput, c.ERR))
             else:
                 print(col(' !! failed to read %s' % userinput, c.ERR))
