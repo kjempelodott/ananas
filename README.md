@@ -254,4 +254,4 @@ To automate the evaluation process even further, you can use the `eval#` command
 </THISTAGCANBEWHATEVERYOUWANT>
 ```
 
-The only required attribute is `name`. You will get a warning if both `path` and text are missing in 'comment'. If you are too stupid to correctly spell the name or evaluation string, fuzzy string matching will probably save your ass.
+The only required attribute is `name`. You will get a warning if both `path` and text are missing in `comment`. If you are too stupid to correctly spell the name or evaluation string, fuzzy string matching will probably save your ass.
