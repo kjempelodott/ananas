@@ -178,7 +178,7 @@ Let's try to upload some shit:
 [0  ] SG5Vspreg.pdf                                                eval, del, get
 ```
 
-Wohoo! Note that file select accepts wildcards. For example, `./blah/*.pdf` will upload all pdf-files from `./blah/`. Students can use this to upload their assignemnt to a task folder.
+Wohoo! Note that file select accepts wildcards. For example, `./blah/*.pdf` will upload all pdf-files from `./blah/`. Students can use `post` to upload their assignemnt to a task folder.
 
 If you have IPython installed, you will probably find its tab completion capabilities useful for selecting a folder and for uploading files.
 
