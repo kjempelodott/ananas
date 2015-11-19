@@ -91,7 +91,7 @@ class Members(Tool):
     def print_members(self):
 
         for idx, member in enumerate(self.members):
-            print(col('[%-3i] ' % idx, c.HL) + member.str())
+            print(col('[%-3i] ' % (idx + 1), c.HL) + member.str())
 
 
     def mailto(self, select):
@@ -99,7 +99,7 @@ class Members(Tool):
         who = None
         try:
             idx = select.split()
-            who = [self.members[int(i)] for i in idx]
+            who = [self.members[int(i) - 1] for i in idx if i > 0]
         except ValueError:
             if select[0] == '!':
                 who = [member for member in self.members if member.label != select[1:]]
@@ -265,7 +265,7 @@ class FileTree(Tool):
                 assert(not refresh)
                 tid = int(re.findall('treeid=([0-9]+)', href)[0])
                 self.cwd.children['branches'].append(FileTree.Branch(name, tid, self.cwd))
-            except AssertionError:
+            except (AssertionError, IndexError):
                 if 'files.phtml' in href:
                     self.cwd.children['leafs'].append(FileTree.Leaf(name, href, self.cwd))
                     self.cwd.children['leafs'][-1].make_menu(menu)
@@ -302,7 +302,7 @@ class FileTree(Tool):
 
         print(col(self.cwd.path, c.HEAD))
         for idx, item in enumerate(self.cwd.children['branches'] + self.cwd.children['leafs']):
-            print(col('[%-3i] ' % idx, c.HL) + item.str())
+            print(col('[%-3i] ' % (idx + 1), c.HL) + item.str())
         
 
     def goto_idx(self, idx):
@@ -312,7 +312,10 @@ class FileTree(Tool):
                 self.goto_branch(self.cwd.parent)
             return
 
-        idx = int(idx)
+        idx = int(idx) - 1
+        if idx < 0:
+            raise IndexError
+
         branches = self.cwd.children['branches']
         if idx >= len(branches):
             print(col(' !! not a dir', c.ERR))
@@ -511,8 +514,11 @@ class FileTree(Tool):
                 evals = [(item.getnext().text, item.get('value')) for item in evals]
                 print('')
                 for idx, evali in enumerate(evals):
-                    print(col('[%-3i] ' % idx, c.HL) + evali[0])
-                evaluation = evals[int(input('> evaluation <index> : ').strip())][1]
+                    print(col('[%-3i] ' % (idx + 1), c.HL) + evali[0])
+                idx = int(input('> evaluation <index> : ').strip())
+                if idx < 1:
+                    raise IndexError
+                evaluation = evals[idx - 1][1]
 
                 grade = input('> grade : ')
 
@@ -653,8 +659,8 @@ class FileTree(Tool):
     def _get_leaf(self, idx):
 
         idx = int(idx) - len(self.cwd.children['branches'])
-        if idx < 0:
+        if idx < 1:
             print(col(' !! not a file', c.ERR))
             return
 
-        return self.cwd.children['leafs'][idx]
+        return self.cwd.children['leafs'][idx - 1]

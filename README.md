@@ -184,13 +184,13 @@ Let's try to upload some shit:
 [0  ] SG5Vspreg.pdf                                                eval, del, get
 ```
 
-Wohoo! Note that file select accepts wildcards. For example, `./blah/*.pdf` will upload all pdf-files from `./blah/`. Students can use `post` to upload their assignemnt to a task folder.
+Wohoo! Note that file select accepts wildcards. For example, `./blah/*.pdf` will upload all pdf-files from `./blah/`. Students can use `post` to upload their assignment to a task folder.
 
 If you have IPython installed, you will probably find its tab completion capabilities useful for selecting a folder and for uploading files.
 
 ##### Evaluating assignments
 
-As mentioned before, `eval` is intended for assigments. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with deliveries:
+As mentioned before, `eval` is intended for assigments. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with tasks:
 
 ```
 > select a tool <index> : 2

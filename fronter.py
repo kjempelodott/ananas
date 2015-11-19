@@ -102,8 +102,11 @@ class Fronter(object):
 
     def select_room(self, idx):
 
-        room = self.rooms[idx]
-        self.roomid = idx
+        if idx < 1:
+            raise IndexError
+
+        room = self.rooms[idx - 1]
+        self.roomid = idx - 1
         print(col(' * ', c.ERR) + room.name)
         if not room.tools:
             self.get_tools()
@@ -140,7 +143,10 @@ class Fronter(object):
 
     def select_tool(self, idx):
 
-        tool = self.rooms[self.roomid].tools[idx]
+        if idx < 1:
+            raise IndexError
+
+        tool = self.rooms[self.roomid].tools[idx - 1]
         print(col(' * ', c.ERR) + tool[0])
         if type(tool[2]) is str:
             tool[2] = globals()[tool[1]](self, self.TARGET + tool[2])
@@ -149,8 +155,8 @@ class Fronter(object):
 
     def print_rooms(self):
         for idx, room in enumerate(self.rooms):
-            print(col('[%-3i] ' % idx, c.HL) + room.name)
+            print(col('[%-3i] ' % (idx + 1), c.HL) + room.name)
 
     def print_tools(self):
         for idx, tool in enumerate(self.rooms[self.roomid].tools):
-            print(col('[%-3i] ' % idx, c.HL) + tool[0])
+            print(col('[%-3i] ' % (idx + 1), c.HL) + tool[0])
