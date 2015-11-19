@@ -39,27 +39,27 @@ Username: (myuser) usernameAtFronter
 Password: 
 
 return <Ctrl-D>
-[0  ] Fellesrom for BIO4600 og BIO9600 2014-vår
-[1  ] UNIK4450/9450 - Fellesrom 2014-høst
-[2  ] FYS1000 - Fellesrom 2014-vår
-[3  ] FYS2150 - Fellesrom 2014-vår
-[4  ] FYS2150L - Fellesrom 2014-vår
-[5  ] FYS2150 - Fellesrom 2015-vår
-[6  ] FYS2150L - Fellesrom 2015-vår
+[1  ] Fellesrom for BIO4600 og BIO9600 2014-vår
+[2  ] UNIK4450/9450 - Fellesrom 2014-høst
+[3  ] FYS1000 - Fellesrom 2014-vår
+[4  ] FYS2150 - Fellesrom 2014-vår
+[5  ] FYS2150L - Fellesrom 2014-vår
+[6  ] FYS2150 - Fellesrom 2015-vår
+[7  ] FYS2150L - Fellesrom 2015-vår
 > select a room <index> :
 ```
 
 Currently, there are two tools implemented: Members and FileTree. After selecting a room, you will be asked to select a tool:
 
 ```
-> select a room <index> : 5
+> select a room <index> : 6
  * FYS2150 - Fellesrom 2015-vår
 
 return <Ctrl-D>
-[0  ] Deltakere
-[1  ] Kursmat. og prelab
-[2  ] Rapportinnlevering
-[3  ] Lego Watt-vekt
+[1  ] Deltakere
+[2  ] Kursmat. og prelab
+[3  ] Rapportinnlevering
+[4  ] Lego Watt-vekt
 > select a tool <index> :
 ```
 
@@ -67,10 +67,10 @@ Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you 
 
 #### Members tool
 
-In the example above, the first entry is a Members tool while the last three are FileTree tools. Choosing the Members tool (index 0), we are presented with a help text listing all available commands:
+In the example above, the first entry is a Members tool while the last three are FileTree tools. Choosing the Members tool (index 1), we are presented with a help text listing all available commands:
 
 ```
-> select a tool <index> : 0
+> select a tool <index> : 1
  * Deltakere
 
 Members commands:
@@ -86,19 +86,19 @@ The Members tool lets you list all members of the room and compose an email to o
 
 ```
 > ls
-[0  ] Tro, Lo                             lol@jiofwq.com                     eier
-[1  ] Blarg, Blæh                         blah@nfiha.com                     slette
-[2  ] Ku, Mø                              møøø@nifwq.com                     skrive
-[3  ] Flofsesen, Flofs                    flofs@djoifq.com                   skrive
+[1  ] Tro, Lo                             lol@jiofwq.com                     eier
+[2  ] Blarg, Blæh                         blah@nfiha.com                     slette
+[3  ] Ku, Mø                              møøø@nifwq.com                     skrive
+[4  ] Flofsesen, Flofs                    flofs@djoifq.com                   skrive
 >
 ```
 
 The last column shows the group label. The `mail` command can either take a space separated list of indices or a label as argument. It also understands inverse label selection, `![label]`. Examples:
 
 ```
-> mail 0 3     # selects 0 and 3
-> mail !skrive # selects 0 and 1
-> mail eier    # selects 0
+> mail 2 3     # selects 2 and 3
+> mail !skrive # selects 1 and 2
+> mail eier    # selects 1
 ```
 
 #### FileTree tools
@@ -106,7 +106,7 @@ The last column shows the group label. The `mail` command can either take a spac
 The FileTree tools allows you to traverse folders, and list, download, delete, upload and evaluate files:
 
 ```
-> select a tool <index> : 1
+> select a tool <index> : 2
  * Kursmat. og prelab
 
 FileTree commands:
@@ -130,22 +130,22 @@ The `ls` and `cd` commands are similar to the shell commands. Note that `ls` doe
 ```
 > ls
 /
-[0  ] Kursinfo
-[1  ] Matlab
-[2  ] test
-[3  ] readme.txt                                                   eval, del, get
+[1  ] Kursinfo
+[2  ] Matlab
+[3  ] test
+[4  ] readme.txt                                                   eval, del, get
 > 
 ```
 
-Directories are shown in bold text (well, obviously not in this README ... ). To go up one directory, type `cd ..`. But since we're already at root, let's enter the **test** (index 2) directory:
+Directories are shown in bold text (well, obviously not in this README ... ). To go up one directory, type `cd ..`. But since we're already at root, let's enter the **test** (index 3) directory:
 
 ```
-> cd 2
+> cd 3
 > ls
 /test/
-[0  ] SG5Vspreg.pdf                                                eval, del, get
-[1  ] IR_TXRX_EXTREFLCT.pdf                                        eval, del, get
-[2  ] ExtreflctParts.txt                                           eval, del, get
+[1  ] SG5Vspreg.pdf                                                eval, del, get
+[2  ] IR_TXRX_EXTREFLCT.pdf                                        eval, del, get
+[3  ] ExtreflctParts.txt                                           eval, del, get
 >
 ```
 
@@ -154,7 +154,7 @@ Directories are shown in bold text (well, obviously not in this README ... ). To
 The rightmost column shows the available actions for each file. The `eval` command is really only useful for assignments, so we will skip that for now. The `del` and `get` commands deletes or downloads the file. They take either a list of indices or wildcard * as argument. The wildcard selects all files for download/deletion. For download, you will be asked where to download the files:
 
 ```
-> get 0
+> get 1
 > select folder (/home/myuser) : /tmp/
  * /tmp/SG5Vspreg.pdf
 > 
@@ -181,7 +181,7 @@ Let's try to upload some shit:
  * /tmp/SG5Vspreg.pdf
 > ls
 /test/
-[0  ] SG5Vspreg.pdf                                                eval, del, get
+[1  ] SG5Vspreg.pdf                                                eval, del, get
 ```
 
 Wohoo! Note that file select accepts wildcards. For example, `./blah/*.pdf` will upload all pdf-files from `./blah/`. Students can use `post` to upload their assignment to a task folder.
@@ -193,37 +193,37 @@ If you have IPython installed, you will probably find its tab completion capabil
 As mentioned before, `eval` is intended for assigments. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with tasks:
 
 ```
-> select a tool <index> : 2
+> select a tool <index> : 3
  * Rapportinnlevering
 
 ...
 
 > ls
 /
-[0  ] test
-> cd 0
+[1  ] test
+> cd 1
 > ls
 /test/
-[0  ] NA          Lo Tro                        NA
-[1  ] 2015-02-13  Mø Ku                         not evaluated
-[2  ] NA          Blæh Blarg                    NA
-[3  ] NA          Flofs Flofsesen               NA
+[1  ] NA          Lo Tro                        NA
+[2  ] 2015-02-13  Mø Ku                         not evaluated
+[3  ] NA          Blæh Blarg                    NA
+[4  ] NA          Flofs Flofsesen               NA
 >
 ```
 
-Note that if you're a student, you will only see your own assigment, and you will only be able to **read** the evaluation. There is only one student that has uploaded her assigment ... To download it, type `get 1`. Okay, looks like a nice assigment. Let's evaluate it:
+Note that if you're a student, you will only see your own assigment, and you will only be able to **read** the evaluation. There is only one student that has uploaded her assigment ... To download it, type `get 2`. Okay, looks like a nice assigment. Let's evaluate it:
 
 ```
-> eval 1
+> eval 2
 Evaluering: Ikke evaluert
 > edit evaluation, grade and comment? (y/n) y
 
-[0  ] Godkjent
-[1  ] På god vei
-[2  ] Ikke godkjent
-[3  ] Ikke levert
-[4  ] Ikke evaluert
-> evaluation <index> : 0
+[1  ] Godkjent
+[2  ] På god vei
+[3  ] Ikke godkjent
+[4  ] Ikke levert
+[5  ] Ikke evaluert
+> evaluation <index> : 1
 > grade : A
 > comment (end with Ctrl-D):
 """
