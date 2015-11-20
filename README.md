@@ -190,7 +190,7 @@ If you have IPython installed, you will probably find its tab completion capabil
 
 ##### Evaluating assignments
 
-As mentioned before, `eval` is intended for assigments. This lets admins evaluate, grade and comment on student assigments. Let's go back and choose a FileTree with tasks:
+As mentioned before, `eval` is intended for assignments. This lets admins evaluate, grade and comment on student assignments. Let's go back and choose a FileTree with tasks:
 
 ```
 > select a tool <index> : 3
@@ -211,7 +211,7 @@ As mentioned before, `eval` is intended for assigments. This lets admins evaluat
 >
 ```
 
-Note that if you're a student, you will only see your own assigment, and you will only be able to **read** the evaluation. There is only one student that has uploaded her assigment ... To download it, type `get 2`. Okay, looks like a nice assigment. Let's evaluate it:
+Note that if you're a student, you will only see your own assigmnent, and you will only be able to **read** the evaluation. There is only one student that has uploaded her assignment ... To download it, type `get 2`. Okay, looks like a nice assignment. Let's evaluate it:
 
 ```
 > eval 2

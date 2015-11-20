@@ -4,8 +4,8 @@ from glob import glob
 from collections import namedtuple, OrderedDict
 from shutil import copyfileobj
 from lxml import html, etree
-from plugins import Mailserver, Color
 from difflib import SequenceMatcher
+from plugins import Mailserver, Color
 
 if sys.version_info[0] == 2:
     from urllib import urlencode, unquote_plus
@@ -222,6 +222,8 @@ class FileTree(Tool):
         tr_odd = xml.xpath('//tr[@class="tablelist-odd"]')
         tr_even = xml.xpath('//tr[@class="tablelist-even"]')
 
+        _tmp = {}
+
         for tr in tr_odd + tr_even:
             try:
                 name   = tr.xpath('td[2]/label')[0] # IndexError (not an assigment row)
@@ -243,12 +245,14 @@ class FileTree(Tool):
                 except ValueError:
                     url = date = status = None
 
-                self.cwd.children['leafs'].append(FileTree.Delivery(first, last, url,
-                                                                    date, status, self.cwd))
-                self.cwd.children['leafs'][-1].make_menu(menu)
+                leaf = FileTree.Delivery(first, last, url, date, status, self.cwd)
+                leaf.make_menu(menu)
+                _tmp[first] = leaf
 
             except IndexError:
                 continue
+
+        self.cwd.children['leafs'] = [_tmp[k] for k in sorted(_tmp)]
 
 
     def _parse(self, xml, menus, refresh = False):
