@@ -67,7 +67,9 @@ return <Ctrl-D>
 
 The first entry is a RoomInfo tool, the second a Members tool and the last three are FileTree tools.
 
-Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort an interactive command like `mail` or `eval`, press `Ctrl-C`.
+Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort a command like , press `Ctrl-C`.
+
+Commands that requires text editing, like `mail` or `eval` will open up the default text editor. On *nix systems this is defined in the `VISUAL` and/or `EDITOR` environment variables. If not set, `nano` will be used. The editor will open up a temporary file with prefix `fronter_`. It's **IMPORTANT** that you save to this file.
 
 #### RoomInfo tool
 
@@ -271,7 +273,10 @@ Evaluering: Ikke evaluert
 [5  ] Ikke evaluert
 > evaluation <index> : 1
 > grade : A
-> comment (end with Ctrl-D):
+
+[ text editor ... ]
+
+> comment:
 """
 Nice work!
 """
