@@ -49,28 +49,73 @@ return <Ctrl-D>
 > select a room <index> :
 ```
 
-Currently, there are two tools implemented: Members and FileTree. After selecting a room, you will be asked to select a tool:
+Currently, there are three tools implemented: RoomInfo, Members and FileTree. After selecting a room, you will be asked to select a tool:
 
 ```
 > select a room <index> : 6
  * FYS2150 - Fellesrom 2015-vår
 
 return <Ctrl-D>
-[1  ] Deltakere
-[2  ] Kursmat. og prelab
-[3  ] Rapportinnlevering
-[4  ] Lego Watt-vekt
+[1  ] Rom
+[2  ] Deltakere
+[3  ] Kursmat. og prelab
+[4  ] Rapportinnlevering
+[5  ] Lego Watt-vekt
 > select a tool <index> :
 ```
 
+The first entry is a RoomInfo tool, the second a Members tool and the last three FileTree tools.
+
 Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort an interactive command like `mail` or `eval`, press `Ctrl-C`.
 
-#### Members tool
+#### RoomInfo tool
 
-In the example above, the first entry is a Members tool while the last three are FileTree tools. Choosing the Members tool (index 1), we are presented with a help text listing all available commands:
+The RoomInfo tool lets you read messages posted by teachers:
 
 ```
 > select a tool <index> : 1
+ * Rom
+
+RoomInfo commands:
+return <Ctrl-D>
+exit                     exit
+h                        print commands
+ls                       list messages
+p        <index>         print message
+> 
+```
+
+The `ls` command shows all messages in descending order, meaning that the latest messages appear at the bottom:
+
+```
+> ls
+[1  ] Rapport 1 som skal leveres  13.02. ...
+[2  ] Feil i de to første prelab-oppgavene ...
+[3  ] Vi har funnet ut at siste prelaboppgaven for Lengde, hatighet og akselerasjon er ...
+[4  ] Undervisningsplan ...
+```
+
+Plain text and light HTML messages can be viewed in the terminal. Let's have a look at the latest message (index 4):
+
+```
+> p 4
+
+Undervisningsplan
+Jeg har lagt ut en undervisningsplan for semesteret:
+Kursmat. og prelab > 0 Kursinfo  > Undervisningsplan_studentversjon_2015.pdf
+Hilsen ******
+
+raw html: file:///tmp/fronter_ZNrjtx.html
+```
+
+While this message displays nicely, notice the `raw html` thingy at the bottom. If the message looks like codswallop or you see `!! badass table`, you should open the file-link in your browser to display it properly. 
+
+#### Members tool
+
+The Members tool lets you list all members of the room and compose an email to one or a group of member(s):
+
+```
+> select a tool <index> : 2
  * Deltakere
 
 Members commands:
@@ -79,10 +124,10 @@ exit                     exit
 h                        print commands
 ls                       list members
 mail     <index/label>   send mail to a (group of) member(s)
-> 
+>
 ```
 
-The Members tool lets you list all members of the room and compose an email to one or a group of member(s). Before you try to send emails, please make sure that the correct server, domain and port are set in `fronter.conf`. Let's list all the members:
+Before you try to send emails, please make sure that the correct server, domain and port are set in `fronter.conf`. Let's list all the members:
 
 ```
 > ls
@@ -106,7 +151,7 @@ The last column shows the group label. The `mail` command can either take a spac
 The FileTree tools allows you to traverse folders, and list, download, delete, upload and evaluate files:
 
 ```
-> select a tool <index> : 2
+> select a tool <index> : 3
  * Kursmat. og prelab
 
 FileTree commands:
@@ -193,7 +238,7 @@ If you have IPython installed, you will probably find its tab completion capabil
 As mentioned before, `eval` is intended for assignments. This lets admins evaluate, grade and comment on student assignments. Let's go back and choose a FileTree with tasks:
 
 ```
-> select a tool <index> : 3
+> select a tool <index> : 4
  * Rapportinnlevering
 
 ...

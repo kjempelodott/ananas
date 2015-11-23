@@ -3,15 +3,17 @@ from datetime import datetime
 from glob import glob
 from collections import namedtuple, OrderedDict
 from shutil import copyfileobj
+from tempfile import mkstemp
 from lxml import html, etree
 from difflib import SequenceMatcher
-from plugins import Mailserver, Color
 
 if sys.version_info[0] == 2:
     from urllib import urlencode, unquote_plus
     input = raw_input
 else:
     from urllib.parse import urlencode, unquote_plus
+
+from plugins import Mailserver, Color
 
 c = Color()
 col = c.colored
@@ -46,6 +48,133 @@ class Tool(object):
         print(col('%s commands:' % str(self), c.HEAD))
         print(col('return <Ctrl-D>', c.HL))
         print('\n'.join(str(a) for a in self.commands.values()))
+
+
+class RoomInfo(Tool):
+
+    class Message:
+
+        def __init__(self, header, url = None):
+
+            self.header = header.split('\n', 1)[0][:80]
+            self.url = url
+            self.content = ''
+            self.fname = ''
+            if url:
+                self.msg_id = re.match('.+#selected_news([0-9]+)', url).groups()[0]
+
+        def str(self):
+            return '\n' + self.content + col('\nraw html: ', c.HL) + 'file://' + self.fname
+
+
+    def __init__(self, client, url):
+
+        super(RoomInfo, self).__init__()
+        self.opener = client.opener
+        self.TARGET = client.TARGET
+
+        self.get_messages(url)
+        self.messages = self.messages[::-1]
+        self.commands['ls']  = Tool.Command('ls', self.print_messages, '', 'list messages')
+        self.commands['p'] = Tool.Command('p', self.read, '<index>', 'print message')
+
+
+    def get_messages(self, url):
+
+        response  = self.opener.open(url + '&show_news_all=1')
+        xml       = html.fromstring(response.read())
+        msg_tab   = xml.xpath('//table[contains(@class, "news-element")]')[-1]
+        headers   = msg_tab.xpath('.//div[@class="content-header2"]')
+        read_more = msg_tab.xpath('.//div[@style="float:right;"]')
+
+        self.messages = []
+
+        for head, url in zip(headers, read_more):
+            try:
+                header = head.text_content()
+                url = self.TARGET + 'prjframe/' + url.getchildren()[0].get('href')
+                self.messages.append(RoomInfo.Message(header, url))
+            except IndexError:
+                self.messages.append(RoomInfo.Message(header))
+                self.messages[-1].content = header
+                self.messages[-1].fname = RoomInfo._write_html(html.tostring(head))
+
+
+    @staticmethod
+    def _write_html(data):
+        fd, fname = mkstemp(prefix='fronter_', suffix='.html')
+        with os.fdopen(fd, 'wb') as f:
+            f.write(data)
+        return fname
+
+
+    def print_messages(self):
+
+        for idx, msg in enumerate(self.messages):
+            print(col('[%-3i] ' % (idx + 1), c.HL) + msg.header + ' ...')
+
+
+    def read(self, idx):
+
+        idx = int(idx) - 1
+        if idx < 0:
+            raise IndexError
+
+        msg = self.messages[idx]
+
+        if msg.content:
+            print(msg.str())
+            return
+
+        response = self.opener.open(msg.url)
+        xml = html.fromstring(response.read())
+        _link = xml.xpath('//a[@name="selected_news%s"]' % msg.msg_id)[0]
+        message = _link.getnext().xpath('.//div[@class="content-header2"]')[0]
+
+        msg.fname = RoomInfo._write_html(html.tostring(message))
+        # Some short messages are just plain text
+        msg.content = message.text or ''
+
+        # Parse HTML
+        for elem in message:
+
+            if elem.tag == 'table':
+                rows = []
+                try:
+                    for tr in elem:
+                        rows.append([td.text_content().strip() for td in tr])
+
+                    widths = list(map(max, [map(len, clm) for clm in zip(*rows)]))
+                    pieces = ['%-' + str(w + 2) + 's' for w in widths]
+
+                    table_content = '\n' + '-' * (sum(widths) + 4 + 2*len(widths)) + '\n'
+                    for row in rows:
+                        table_content += '| ' + ''.join(pieces) % tuple(row) + ' |\n'
+                    table_content += '-' * (sum(widths) + 4 + 2*len(widths)) + '\n'
+
+                    msg.content += table_content
+                except:
+                    msg.content += col('!! badass table', c.ERR)
+
+            elif elem.tag == 'ul':
+                msg.content += '\n'
+                for li in elem:
+                    msg.content += ' * ' + li.text_content() + '\n'
+                msg.content += '\n'
+
+            elif elem.tag == 'ol':
+                msg.content += '\n'
+                for i, li in enumerate(elem):
+                    msg.content += ' %i. ' % (i + 1) + li.text_content() + '\n'
+                msg.content += '\n'
+
+            else:
+                msg.content += elem.text_content()
+
+            # Trailing text after <br> etc ...
+            msg.content += elem.tail or ''
+
+        print(msg.str())
 
 
 class Members(Tool):
@@ -226,7 +355,7 @@ class FileTree(Tool):
 
         for tr in tr_odd + tr_even:
             try:
-                name   = tr.xpath('td[2]/label')[0] # IndexError (not an assigment row)
+                name   = tr.xpath('td[2]/label')[0] # IndexError (not an assignment row)
                 url    = tr.xpath('td[3]')[0]
                 date   = tr.xpath('td[4]/label')[0]
                 status = tr.xpath('td[5]/img')

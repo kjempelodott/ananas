@@ -13,7 +13,7 @@ else: # Python3
     from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib.parse import urlencode
 
-from tools import Members, FileTree
+from tools import Members, FileTree, RoomInfo
 from plugins import Color, MultipartPostHandler
 
 c = Color()
@@ -26,6 +26,7 @@ class Fronter(object):
     _imp = {
          3 : 'FileTree',
         18 : 'Members', 
+        25 : 'RoomInfo'
     }
 
     def __init__(self):
