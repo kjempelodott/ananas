@@ -20,7 +20,7 @@ The purpose of this is to minimize the number of puppy deaths. Every time you lo
 
 #### How to use it
 
-Run it in the terminal like this (*nix):
+Run it in the terminal like this (\*nix):
 
 ```
 ./pyshell
@@ -69,7 +69,7 @@ The first entry is a RoomInfo tool, the second a Members tool and the last three
 
 Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort a command like , press `Ctrl-C`.
 
-Commands that requires text editing, like `mail` or `eval` will open up the default text editor. On *nix systems this is defined in the `VISUAL` and/or `EDITOR` environment variables. If not set, `nano` will be used. The editor will open up a temporary file with prefix `fronter_`. It's **IMPORTANT** that you save to this file.
+Commands that requires text editing, like `mail` or `eval` will open up the default text editor. On \*nix systems this is defined in the `VISUAL` and/or `EDITOR` environment variables. If not set, `nano` will be used. The editor will open up a temporary file with prefix `fronter_`. It's **IMPORTANT** that you save to this file.
 
 #### RoomInfo tool
 
@@ -199,7 +199,7 @@ Directories are shown in bold text (well, obviously not in this README ... ). To
 
 ##### Download, upload and delete
 
-The rightmost column shows the available actions for each file. The `eval` command is really only useful for assignments, so we will skip that for now. The `del` and `get` commands deletes or downloads the file. They take either a list of indices or wildcard * as argument. The wildcard selects all files for download/deletion. For download, you will be asked where to download the files:
+The rightmost column shows the available actions for each file. The `eval` command is really only useful for assignments, so we will skip that for now. The `del` and `get` commands deletes or downloads the file. They take either a list of indices or wildcard \* as argument. The wildcard selects all files for download/deletion. For download, you will be asked where to download the files:
 
 ```
 > get 1
