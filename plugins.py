@@ -1,5 +1,7 @@
 import sys, os, stat, base64
 import smtplib, mimetypes
+from subprocess import call
+from tempfile import mkstemp
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -14,6 +16,21 @@ else:
     from configparser import ConfigParser
     from urllib.request import HTTPHandler, BaseHandler
     from urllib.parse import urlencode
+
+
+class Editor():
+
+    def __init__(self):
+        self.editor = os.getenv('VISUAL') or os.getenv('EDITOR') or \
+                      ('nano', 'notepad.exe')[sys.platform[:3] == 'win']
+
+    def edit(self, fname):
+        call([self.editor, fname])
+
+    def new(self):
+        fd, fname = mkstemp(prefix='fronter_')
+        self.edit(fname)
+        return fd
 
 
 class Color():
@@ -32,6 +49,7 @@ class Color():
 
 c = Color()
 col = c.colored
+txt = Editor()
 
 
 class Mailserver(smtplib.SMTP_SSL, object):
@@ -65,15 +83,14 @@ class Mailserver(smtplib.SMTP_SSL, object):
         subject = Header(input('> subject : '), 'utf-8')
         msg = MIMEMultipart()
         msg['Subject'] = subject
-        text = ''
 
-        print('> message (end with Ctrl-D):')
+        text = ''
+        with os.fdopen(txt.new(), 'rb') as f:
+            text = f.read()
+
+        print('> message:')
         print('"""')
-        while True:
-            try:
-                text += input('') + '\n'
-            except EOFError:
-                break
+        print(text)
         print('"""')
 
         yn = ''
@@ -85,7 +102,6 @@ class Mailserver(smtplib.SMTP_SSL, object):
         except:
             super(Mailserver, self).__init__(self.server, self.port)
             self.login(self.username, base64.b64decode(self.__secret__).decode('ascii'))
-
 
         if yn == 'y':
 
