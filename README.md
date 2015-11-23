@@ -4,6 +4,7 @@ The purpose of this is to minimize the number of puppy deaths. Every time you lo
 
 * [Requirements](https://github.com/kjempelodott/ananas#requirements)
 * [How to use it](https://github.com/kjempelodott/ananas#how-to-use-it)
+  * [RoomInfo tool](https://github.com/kjempelodott/ananas#roominfo-tool)
   * [Members tool](https://github.com/kjempelodott/ananas#members-tool)
   * [FileTree tools](https://github.com/kjempelodott/ananas#filetree-tools)
     * [Navigating](https://github.com/kjempelodott/ananas#navigating)
@@ -64,7 +65,7 @@ return <Ctrl-D>
 > select a tool <index> :
 ```
 
-The first entry is a RoomInfo tool, the second a Members tool and the last three FileTree tools.
+The first entry is a RoomInfo tool, the second a Members tool and the last three are FileTree tools.
 
 Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort an interactive command like `mail` or `eval`, press `Ctrl-C`.
 
