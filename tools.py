@@ -513,15 +513,18 @@ class FileTree(Tool):
 
     def download(self, idx):
 
+        if not self.cwd.children['leafs']:
+            print(col(' !! no files in current dir', c.ERR))
+            return
+
         idx = idx.strip().split()
         leafs = []
         if idx[0] == '*':
             leafs = self.cwd.children['leafs']
         else:
-            leafs = [self._get_leaf(i) for i in idx]
+            leafs = list(filter(None, [self._get_leaf(i) for i in idx]))
 
         if not leafs:
-            print(col(' !! no files in current dir', c.ERR))
             return
 
         folder = self._get_local_folder()
