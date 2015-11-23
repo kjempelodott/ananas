@@ -13,10 +13,11 @@ if sys.version_info[0] == 2:
 else:
     from urllib.parse import urlencode, unquote_plus
 
-from plugins import Mailserver, Color
+from plugins import Mailserver, Color, Editor
 
 c = Color()
 col = c.colored
+txt = Editor()
 
 
 class Tool(object):
@@ -577,17 +578,19 @@ class FileTree(Tool):
     @staticmethod
     def print_eval(xml, evals):
 
+        comment_text = ''
         comment = xml.xpath('//input[@name="element_comment_hidden"]')[0]
         if comment.value:
+            comment_text = comment.value.strip()
             print(col(xml.xpath('//label[@for="element_comment"]')[0].text, c.HL))
-            print('"""\n' + comment.value.strip() + '\n"""')
+            print('"""\n' + comment_text + '\n"""')
 
         grade = xml.xpath('//input[@name="grade_hidden"]')[0]
         grade_label = xml.xpath('//label[@for="grade"]')[0]
         if grade.value:
             print(col(grade_label.text, c.HL) + ' ' + grade.value)
 
-        eval_text = None
+        eval_text = ''
         eval_span = grade.getnext().getchildren()[0].getchildren()[0]
         if evals:
             for evali in evals:
@@ -600,8 +603,12 @@ class FileTree(Tool):
         if eval_text:
             print(col(eval_span.text, c.HL) + ' ' + eval_text)
 
+        return comment_text
 
-    def evaluate(self, idx, comment = '', cfile = None, grade = '', evaluation = '', batch = False):
+
+    def evaluate(self, idx, batch = False, **kwargs):
+
+        comment = cfile = grade = evaluation = ''
 
         leaf = self._get_leaf(idx)
         if not leaf:
@@ -617,7 +624,7 @@ class FileTree(Tool):
 
         if not batch: 
 
-            FileTree.print_eval(xml, evals)
+            comment = FileTree.print_eval(xml, evals)
 
             # Check if authorized to edit
             if not evals:
@@ -661,13 +668,20 @@ class FileTree(Tool):
 
                 grade = input('> grade : ')
 
-                print('> comment (end with Ctrl-D):')
+                fd, fname = mkstemp(prefix='fronter_')
+                with os.fdopen(fd, 'w+b') as f:
+                    # Write original comment to file
+                    f.write(comment)
+                    f.flush()
+                    # Open in editor
+                    txt.edit(fname)
+                    # Read new comment
+                    f.seek(0)
+                    comment = f.read()
+
+                print('> comment:')
                 print('"""')
-                while True:
-                    try:
-                        comment += input('') + '\n'
-                    except EOFError:
-                        break
+                print(comment)
                 print('"""')
 
                 print('> upload file with comments? (leave blank if not)')
@@ -676,7 +690,14 @@ class FileTree(Tool):
             else:
                 return
 
-        else: # Get the correct evaluation
+        else: # Extract kwargs
+
+            comment    = kwargs.get('comment', '')
+            evaluation = kwargs.get('evaluation', '')
+            grade      = kwargs.get('grade', '')
+            cfile      = kwargs.get('cfile', '')
+
+            # Get the correct evaluation
 
             if not evaluation: # Set to 'not evaluated'
                 evaluation = evals[-1].get('value')
@@ -747,9 +768,10 @@ class FileTree(Tool):
                         idx   = score.index(win)
                         name  = self.cwd.children['leafs'][idx].title
 
-                    evl     = student.get('eval') or ''
-                    grade   = student.get('grade') or ''
-                    comment = cfile = ''
+                    evaluation = student.get('eval') or ''
+                    grade      = student.get('grade') or ''
+                    comment    = ''
+                    cfile      = ''
 
                     for elem in student:
                         if elem.tag == 'comment':
@@ -762,7 +784,15 @@ class FileTree(Tool):
                         print(col('!! no comment or comments file (%s)' % name, c.ERR))
 
                     print('%-45s %s' % (col(name, c.HL, True), comment[0][:30] + ' ...'))
-                    batch.append((idx + 1, '\n'.join(comment), cfile, grade, evl, True))
+
+                    kwargs = {'idx'        : idx + 1,
+                              'batch'      : True,
+                              'comment'    : '\n'.join(comment),
+                              'evaluation' : evaluation,
+                              'grade'      : grade,
+                              'cfile'      : cfile}
+
+                    batch.append(kwargs)
 
             yn = ''
             while yn not in ('y', 'n'):
@@ -770,8 +800,8 @@ class FileTree(Tool):
             if yn == 'n':
                 return
 
-            for b in batch:
-                self.evaluate(*b)
+            for kwargs in batch:
+                self.evaluate(**kwargs)
 
             self.refresh()
             
