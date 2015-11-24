@@ -50,19 +50,32 @@ class Tool(object):
         print(col('return <Ctrl-D>', c.HL))
         print('\n'.join(str(a) for a in self.commands.values()))
 
+    def prepare_form(self, xml):
+
+        form = xml.xpath('//form[@name="actionform"]')[0]
+        inputs = form.xpath('input[@type="hidden"]')
+        payload = dict((i.name, i.get('value')) for i in inputs)
+
+        url = form.get('action')
+        if not url.startswith(self.TARGET):
+            url = url.lstrip('..')
+
+        return url, payload
+
 
 class RoomInfo(Tool):
 
     class Message:
 
-        def __init__(self, header, url = None):
+        def __init__(self, header, mid, url = None):
 
-            self.header = header.split('\n', 1)[0][:80]
+            self.header = header
+            self.id = mid
             self.url = url
             self.content = ''
+            self.html = None
             self.fname = ''
-            if url:
-                self.msg_id = re.match('.+#selected_news([0-9]+)', url).groups()[0]
+            self.menu = {'get' : url}
 
         def str(self):
             return '\n' + self.content + col('\nraw html: ', c.HL) + 'file://' + self.fname
@@ -77,7 +90,10 @@ class RoomInfo(Tool):
         self.get_messages(url)
         self.messages = self.messages[::-1]
         self.commands['ls']  = Tool.Command('ls', self.print_messages, '', 'list messages')
-        self.commands['p'] = Tool.Command('p', self.read, '<index>', 'print message')
+        self.commands['get'] = Tool.Command('get', self.view, '<index>', 'print message')
+        #self.commands['post'] = Tool.Command('post', self.new, '', 'new message')
+        self.commands['put'] = Tool.Command('put', self.edit, '<index>', 'edit message')
+        self.commands['del'] = Tool.Command('del', self.delete, '<index>', 'delete message')
 
 
     def get_messages(self, url):
@@ -85,25 +101,35 @@ class RoomInfo(Tool):
         response  = self.opener.open(url + '&show_news_all=1')
         xml       = html.fromstring(response.read())
         msg_tab   = xml.xpath('//table[contains(@class, "news-element")]')[-1]
+        msg_id    = msg_tab.xpath('//td[@class="content-header"]/a')
         headers   = msg_tab.xpath('.//div[@class="content-header2"]')
         read_more = msg_tab.xpath('.//div[@style="float:right;"]')
+        actions   = msg_tab.xpath('.//div[@class="righttab2"]')
 
         self.messages = []
 
-        for head, url in zip(headers, read_more):
+        header = mid = ''
+        for head, mid, url in zip(headers, msg_id, read_more):
             try:
-                header = head.text_content()
+                header = head.text_content().split('\n', 1)[0][:50]
+                mid = mid.get('name').replace('selected_news', '')
                 url = self.TARGET + 'prjframe/' + url.getchildren()[0].get('href')
-                self.messages.append(RoomInfo.Message(header, url))
+                self.messages.append(RoomInfo.Message(header, mid, url))
             except IndexError:
-                self.messages.append(RoomInfo.Message(header))
+                self.messages.append(RoomInfo.Message(header, mid))
                 self.messages[-1].content = header
-                self.messages[-1].fname = RoomInfo._write_html(html.tostring(head))
+                self.messages[-1].fname = RoomInfo._write_html(head)
+
+        if actions:
+            for msg in self.messages:
+                msg.menu['put'] = self.TARGET + 'prjframe/index.phtml?add_new_news=1&edit_id=' + msg.id
+                msg.menu['del'] = self.TARGET + 'prjframe/index.phtml?news_save=1&del_id=' + msg.id
 
 
     @staticmethod
     def _write_html(data):
         fd, fname = mkstemp(prefix='fronter_', suffix='.html')
+        data = re.sub('</?div.*?>', '', html.tostring(data))
         with os.fdopen(fd, 'wb') as f:
             f.write(data)
         return fname
@@ -112,32 +138,87 @@ class RoomInfo(Tool):
     def print_messages(self):
 
         for idx, msg in enumerate(self.messages):
-            print(col('[%-3i] ' % (idx + 1), c.HL) + msg.header + ' ...')
+            print(col('[%-3i] ' % (idx + 1), c.HL) +
+                  '%-60s %s' % (msg.header + ' ... ', ', '.join(msg.menu)))
 
 
-    def read(self, idx):
+    def _get_msg(self, idx):
 
         idx = int(idx) - 1
         if idx < 0:
             raise IndexError
 
-        msg = self.messages[idx]
+        return self.messages[idx]
 
+
+    def new(self):
+        pass
+
+
+    def delete(self, idx):
+
+        msg = self._get_msg(idx)
+
+        if not 'del' in msg.menu:
+            print(col(' !! not authorized to delete'), c.ERR)
+            return
+
+        self.opener.open(msg.menu['del'])
+
+
+    def edit(self, idx):
+
+        msg = self._get_msg(idx)
+
+        if not 'put' in msg.menu:
+            print(col(' !! not authorized to edit'), c.ERR)
+            return
+
+        if not msg.fname:
+            self.read(msg)
+        txt.edit(msg.fname)
+
+        response = self.opener.open(msg.menu['put'])
+        xml = html.fromstring(response.read())
+        url, payload = self.prepare_form(xml)
+
+        # Read new message
+        with open(msg.fname, 'rb') as f:
+            payload['body'] = f.read()
+
+        payload['news_edit'] = msg.id
+        self.opener.open(self.TARGET + 'prjframe/' + url, urlencode(payload).encode('ascii'))
+        # Refresh and print
+        msg.html = ''
+        msg.content = ''
+        self.view(idx)
+        msg.header = msg.content.split('\n', 1)[0][:50]
+
+
+    def read(self, msg):
+
+        response = self.opener.open(msg.menu['get'])
+        xml = html.fromstring(response.read())
+        _link = xml.xpath('//a[@name="selected_news%s"]' % msg.id)[0]
+        msg.html = _link.getnext().xpath('.//div[@class="content-header2"]')[0]
+        msg.fname = RoomInfo._write_html(msg.html)
+
+
+    def view(self, idx):
+
+        msg = self._get_msg(idx)
         if msg.content:
             print(msg.str())
             return
 
-        response = self.opener.open(msg.url)
-        xml = html.fromstring(response.read())
-        _link = xml.xpath('//a[@name="selected_news%s"]' % msg.msg_id)[0]
-        message = _link.getnext().xpath('.//div[@class="content-header2"]')[0]
+        if not msg.html:
+            self.read(msg)
 
-        msg.fname = RoomInfo._write_html(html.tostring(message))
         # Some short messages are just plain text
-        msg.content = message.text or ''
+        msg.content = msg.html.text or ''
 
         # Parse HTML
-        for elem in message:
+        for elem in msg.html:
 
             if elem.tag == 'table':
                 rows = []
@@ -458,19 +539,6 @@ class FileTree(Tool):
         self.goto_branch(branches[idx])
 
 
-    def prepare_form(self, xml):
-
-        form = xml.xpath('//form[@name="actionform"]')[0]
-        inputs = form.xpath('input[@type="hidden"]')
-        payload = dict((i.name, i.get('value')) for i in inputs)
-
-        url = form.get('action')
-        if not url.startswith(self.TARGET):
-            url = self.TARGET + url.lstrip('..')
-
-        return url, payload
-
-
     def upload(self, assignment_xml = None, *comments_file):
 
         files, userinput = [], ''
@@ -506,7 +574,7 @@ class FileTree(Tool):
         payload['do_action'] = 'file_save'
         for f in files:
             payload['file'] = open(f, 'rb')
-            self.opener.open(url, payload)
+            self.opener.open(self.TARGET + url, payload)
             print(col(' * ', c.ERR) + f)
 
         self.refresh()
@@ -729,7 +797,7 @@ class FileTree(Tool):
         payload['grade']           = grade
         payload['aproved']         = evaluation
 
-        self.opener.open(url, urlencode(payload).encode('ascii'))
+        self.opener.open(self.TARGET + url, urlencode(payload).encode('ascii'))
 
         if not batch:
             self.refresh()
