@@ -133,9 +133,10 @@ class RoomInfo(Tool):
     @staticmethod
     def _write_html(data):
         fd, fname = mkstemp(prefix='fronter_', suffix='.html')
-        data = re.sub('</?div.*?>', '', RoomInfo.unesc(html.tostring(data).decode('utf-8')))
+        s  = '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n'
+        s += re.sub('</?div.*?>', '', RoomInfo.unesc(html.tostring(data).decode('utf-8')))
         with os.fdopen(fd, 'wb') as f:
-            f.write(data.encode('utf-8'))
+            f.write(s.encode('utf-8'))
         return fname
 
 
@@ -180,23 +181,26 @@ class RoomInfo(Tool):
 
         if not msg.fname:
             self.read(msg)
-        txt.edit(msg.fname)
 
-        response = self.opener.open(msg.menu['put'])
-        xml = html.fromstring(response.read())
-        url, payload = self.prepare_form(xml)
+        is_mod = txt.edit(msg.fname)
 
-        # Read new message
-        with open(msg.fname, 'rb') as f:
-            payload['body'] = f.read()
+        if is_mod:
+            response = self.opener.open(msg.menu['put'])
+            xml = html.fromstring(response.read())
+            url, payload = self.prepare_form(xml)
 
-        payload['news_edit'] = msg.id
-        self.opener.open(self.TARGET + 'prjframe/' + url, urlencode(payload).encode('ascii'))
-        # Refresh and print
-        msg.html = ''
-        msg.content = ''
-        self.view(idx)
-        msg.header = msg.content.split('\n', 1)[0][:50]
+            # Read new message
+            with open(msg.fname, 'rb') as f:
+                payload['body'] = f.read()
+
+            payload['news_edit'] = msg.id
+            self.opener.open(self.TARGET + 'prjframe/' + url, urlencode(payload).encode('ascii'))
+
+            # Refresh and print
+            msg.html = ''
+            msg.content = ''
+            self.view(idx)
+            msg.header = msg.content.split('\n', 1)[0][:50]
 
 
     def read(self, msg):
@@ -215,7 +219,7 @@ class RoomInfo(Tool):
             print(msg.str())
             return
 
-        if not msg.html:
+        if msg.html is not None:
             self.read(msg)
 
         # Some short messages are just plain text

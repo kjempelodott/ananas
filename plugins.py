@@ -26,7 +26,9 @@ class Editor():
         self.editor = self.editor.split()
 
     def edit(self, fname):
+        mtime = os.stat(fname).st_mtime
         call(self.editor + [fname])
+        return mtime != os.stat(fname).st_mtime
 
     def new(self):
         fd, fname = mkstemp(prefix='fronter_')
