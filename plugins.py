@@ -23,9 +23,10 @@ class Editor():
     def __init__(self):
         self.editor = os.getenv('VISUAL') or os.getenv('EDITOR') or \
                       ('nano', 'notepad.exe')[sys.platform[:3] == 'win']
+        self.editor = self.editor.split()
 
     def edit(self, fname):
-        call([self.editor, fname])
+        call(self.editor + [fname])
 
     def new(self):
         fd, fname = mkstemp(prefix='fronter_')

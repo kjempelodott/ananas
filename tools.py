@@ -129,8 +129,8 @@ class RoomInfo(Tool):
     @staticmethod
     def _write_html(data):
         fd, fname = mkstemp(prefix='fronter_', suffix='.html')
-        data = re.sub('</?div.*?>', '', html.tostring(data))
-        with os.fdopen(fd, 'wb') as f:
+        data = re.sub('</?div.*?>', '', html.tostring(data).decode('utf-8'))
+        with os.fdopen(fd, 'w') as f:
             f.write(data)
         return fname
 
