@@ -69,7 +69,7 @@ The first entry is a RoomInfo tool, the second a Members tool and the last three
 
 Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort a command like , press `Ctrl-C`.
 
-Commands that requires text editing, like `mail` or `eval` will open up the default text editor. On \*nix systems this is defined in the `VISUAL` and/or `EDITOR` environment variables. If not set, `nano` will be used. The editor will open up a temporary file with prefix `fronter_`. It's **IMPORTANT** that you save to this file.
+Commands that requires text editing, like `put`, `mail` and `eval` will open up the default text editor. On \*nix systems this is defined in the `VISUAL` and/or `EDITOR` environment variables. If not set, `nano` will be used. The editor will open up a temporary file with prefix `fronter_`. It's **IMPORTANT** that you save to this file.
 
 #### RoomInfo tool
 
@@ -84,7 +84,9 @@ return <Ctrl-D>
 exit                     exit
 h                        print commands
 ls                       list messages
-p        <index>         print message
+get      <index>         print message
+put      <index>         edit message
+del      <index>         delete message
 > 
 ```
 
@@ -92,16 +94,16 @@ The `ls` command shows all messages in descending order, meaning that the latest
 
 ```
 > ls
-[1  ] Rapport 1 som skal leveres  13.02. ...
-[2  ] Feil i de to første prelab-oppgavene ...
-[3  ] Vi har funnet ut at siste prelaboppgaven for Lengde, hatighet og akselerasjon er ...
-[4  ] Undervisningsplan ...
+[1  ] Rapport 1 som skal leveres  13.02. ...                       put, del, get
+[2  ] Feil i de to første prelab-oppgavene ...                     put, del, get
+[3  ] Vi har funnet ut at siste prelaboppgaven for Lengd ...       put, del, get
+[4  ] Undervisningsplan ...                                        put, del, get
 ```
 
-Plain text and light HTML messages can be viewed in the terminal. Let's have a look at the latest message (index 4):
+The last column shows the available actions for each message. The `put` and `del` commands are used to edit or delete and will only be availible to teachers and admins. Plain text and light HTML messages can be viewed in the terminal. Let's have a look at the latest message (index 4):
 
 ```
-> p 4
+> get 4
 
 Undervisningsplan
 Jeg har lagt ut en undervisningsplan for semesteret:
