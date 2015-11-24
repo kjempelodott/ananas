@@ -69,11 +69,11 @@ The first entry is a RoomInfo tool, the second a Members tool and the last three
 
 Note that you can always go back by pressing `Ctrl-D`. While inside a tool, you can exit the pyshell by typing `exit`. To abort a command like , press `Ctrl-C`.
 
-Commands that requires text editing, like `put`, `mail` and `eval` will open up the default text editor. On \*nix systems this is defined in the `VISUAL` and/or `EDITOR` environment variables. If not set, `nano` will be used. The editor will open up a temporary file with prefix `fronter_`. It's **IMPORTANT** that you save to this file.
+Commands that requires text editing, like `put`, `mail` and `eval`, will open up the default text editor. On \*nix systems this is defined in the `VISUAL` and/or `EDITOR` environment variables. If not set, `nano` will be used. The editor will open up a temporary file with prefix `fronter_`. It's **IMPORTANT** that you save to this file.
 
 #### RoomInfo tool
 
-The RoomInfo tool lets you read messages posted by teachers:
+The RoomInfo tool lets you read messages posted by teachers. Teachers will also be able to post new (not implemented yet), edit and delete messages.
 
 ```
 > select a tool <index> : 1
