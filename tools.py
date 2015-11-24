@@ -9,9 +9,11 @@ from difflib import SequenceMatcher
 
 if sys.version_info[0] == 2:
     from urllib import urlencode, unquote_plus
+    from HTMLParser import HTMLParser
     input = raw_input
 else:
     from urllib.parse import urlencode, unquote_plus
+    from html.parser import HTMLParser
 
 from plugins import Mailserver, Color, Editor
 
@@ -64,6 +66,8 @@ class Tool(object):
 
 
 class RoomInfo(Tool):
+
+    unesc = HTMLParser().unescape
 
     class Message:
 
@@ -129,9 +133,9 @@ class RoomInfo(Tool):
     @staticmethod
     def _write_html(data):
         fd, fname = mkstemp(prefix='fronter_', suffix='.html')
-        data = re.sub('</?div.*?>', '', html.tostring(data).decode('utf-8'))
-        with os.fdopen(fd, 'w') as f:
-            f.write(data)
+        data = re.sub('</?div.*?>', '', RoomInfo.unesc(html.tostring(data).decode('utf-8')))
+        with os.fdopen(fd, 'wb') as f:
+            f.write(data.encode('utf-8'))
         return fname
 
 
