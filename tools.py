@@ -197,7 +197,7 @@ class RoomInfo(Tool):
             self.opener.open(self.TARGET + 'prjframe/' + url, urlencode(payload).encode('ascii'))
 
             # Refresh and print
-            msg.html = ''
+            msg.html = None
             msg.content = ''
             self.view(idx)
             msg.header = msg.content.split('\n', 1)[0][:50]
@@ -219,7 +219,7 @@ class RoomInfo(Tool):
             print(msg.str())
             return
 
-        if msg.html is not None:
+        if msg.html is None:
             self.read(msg)
 
         # Some short messages are just plain text

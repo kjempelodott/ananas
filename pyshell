@@ -7,7 +7,7 @@ else
 fi
 '''
 
-import sys
+import os, sys, tempfile, glob
 
 if sys.version_info[0] == 2:
     from urllib2 import URLError
@@ -114,6 +114,8 @@ def start_shell():
 
     print('> exit')            
 
+    for tmp in glob.glob(os.path.join(tempfile.gettempdir(), 'fronter_*')):
+        os.unlink(tmp)
 
 if __name__ == '__main__':
     start_shell()
