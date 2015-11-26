@@ -89,7 +89,24 @@ class Fronter(object):
         data = urlencode(payload).encode('ascii')
         self.opener.open(url, data)
        
- 
+
+    def print_notifs(self):
+
+        url = self.TARGET + '/personal/index.phtml'
+        response = self.opener.open(url)
+        xml = html.fromstring(response.read())
+        table = xml.xpath('//table[contains(@class, "student-notification-element")]')[-1]
+        rows = table.getchildren()
+
+        get_text = lambda x: x.text_content().strip()
+        fmt = u'{: <16.14}{: <28.26}{: <18.16}{: <18.16}{:>}'
+        print(col('\nNotifications:', c.HEAD))
+        print(col(fmt, c.HL).format(*list(map(get_text, rows[0]))))
+
+        for row in rows[1:]:
+            print(fmt.format(*list(map(get_text, row))))
+
+
     def get_rooms(self):
     
         url = self.TARGET + '/adm/projects.phtml'
@@ -116,7 +133,7 @@ class Fronter(object):
     def get_tools(self):
         
         try:
-            room = self.rooms[self.roomid]  
+            room = self.rooms[self.roomid]
             # If we don't do this, we just get the 'toolbar' at the top
             url = self.TARGET + '/contentframeset.phtml?goto_prjid=%i' % room.id
             self.opener.open(url)
@@ -157,6 +174,7 @@ class Fronter(object):
     def print_rooms(self):
         for idx, room in enumerate(self.rooms):
             print(col('[%-3i] ' % (idx + 1), c.HL) + room.name)
+
 
     def print_tools(self):
         for idx, tool in enumerate(self.rooms[self.roomid].tools):
