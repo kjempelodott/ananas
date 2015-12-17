@@ -91,7 +91,7 @@ def start_shell():
 
     @loop
     def select_room():
-        client.print_notifs()
+        client.print_notifications()
         print(col('\nreturn <Ctrl-D>', c.HL))
         client.print_rooms()
 

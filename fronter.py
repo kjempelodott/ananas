@@ -13,7 +13,9 @@ else: # Python3
     from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
     from urllib.parse import urlencode
 
-from tools import Members, FileTree, RoomInfo
+from tools.members import Members
+from tools.filetree import FileTree
+from tools.roominfo import RoomInfo
 from plugins import Color, MultipartPostHandler
 
 c = Color()
@@ -90,7 +92,7 @@ class Fronter(object):
         self.opener.open(url, data)
        
 
-    def print_notifs(self):
+    def print_notifications(self):
 
         url = self.TARGET + '/personal/index.phtml'
         response = self.opener.open(url)
@@ -98,7 +100,7 @@ class Fronter(object):
         table = xml.xpath('//table[contains(@class, "student-notification-element")]')[-1]
         rows = table.getchildren()
 
-        get_text = lambda x: x.text_content().strip()
+        get_text = lambda x: (x.text or x.text_content()).strip()
         fmt = u'{: <16.14}{: <28.26}{: <18.16}{: <18.16}{:>}'
         print(col('\nNotifications:', c.HEAD))
         print(col(fmt, c.HL).format(*list(map(get_text, rows[0]))))
