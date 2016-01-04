@@ -103,7 +103,10 @@ class Fronter(object):
         get_text = lambda x: (x.text or x.text_content()).strip()
         fmt = u'{: <16.14}{: <28.26}{: <18.16}{: <18.16}{:>}'
         print(col('\nNotifications:', c.HEAD))
-        print(col(fmt, c.HL).format(*list(map(get_text, rows[0]))))
+        try:
+            print(col(fmt, c.HL).format(*list(map(get_text, rows[0]))))
+        except:
+            print(col(rows[0].text_content(), c.HL))
 
         for row in rows[1:]:
             print(fmt.format(*list(map(get_text, row))))

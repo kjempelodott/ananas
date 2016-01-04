@@ -16,7 +16,7 @@ class FileTree(Tool):
             self.treeid = treeid
             self.parent = parent
             self.path = '/' if not parent else parent.path + title + '/'
-            self.children = { 'leafs' : [], 'branches' : [] }
+            self.children = { 'leafs' : [], 'branches' : [], 'tests' : [] }
             self.menu = {}
 
         def str(self):
@@ -49,6 +49,19 @@ class FileTree(Tool):
                     self.menu[action] = FileTree.Leaf.Menu(name = key.strip('"'), url = url)
                 except (AssertionError, ValueError, IndexError):
                     continue
+
+
+    class Test(Leaf):
+
+        def __init__(self, title, url, parent):
+
+            self.title = title
+            self.url = url.lstrip('..')
+            self.parent = parent
+            self.menu = {}
+
+        def str(self):
+            return col(self.title, c.HL)
 
 
     class Delivery(Leaf):
@@ -165,6 +178,8 @@ class FileTree(Tool):
                 if 'files.phtml' in href:
                     self.cwd.children['leafs'].append(FileTree.Leaf(name, href, self.cwd))
                     self.cwd.children['leafs'][-1].make_menu(menu)
+                elif 'questiontest' in href:
+                    self.cwd.children['tests'].append(FileTree.Test(name, href, self.cwd))
 
 
     def goto_branch(self, branch, refresh = False):
@@ -185,6 +200,8 @@ class FileTree(Tool):
                                 data.decode('utf-8')))
 
         branch.children['leafs'] = []
+        branch.children['tests'] = []
+
         self.cwd = branch
         if branch.is_task:
             self._parse_task(xml, menus)
@@ -197,7 +214,9 @@ class FileTree(Tool):
     def print_content(self):
 
         print(col(self.cwd.path, c.HEAD))
-        for idx, item in enumerate(self.cwd.children['branches'] + self.cwd.children['leafs']):
+        for idx, item in enumerate(self.cwd.children['branches'] +
+                                   self.cwd.children['tests'] +
+                                   self.cwd.children['leafs']):
             print(col('[%-3i] ' % (idx + 1), c.HL) + item.str())
         
 
@@ -308,7 +327,10 @@ class FileTree(Tool):
             if yn == 'n':
                 return
         else:
-            leafs = [self._get_leaf(i) for i in idx]
+            leafs = list(filter(None, [self._get_leaf(i) for i in idx]))
+
+        if not leafs:
+            return
 
         for leaf in leafs:
             if not leaf.url:
@@ -586,7 +608,7 @@ class FileTree(Tool):
 
     def _get_leaf(self, idx):
 
-        idx = int(idx) - len(self.cwd.children['branches'])
+        idx = int(idx) - len(self.cwd.children['branches']) - len(self.cwd.children['tests'])
         if idx < 1:
             print(col(' !! not a file', c.ERR))
             return
