@@ -1,25 +1,7 @@
-import re, sys, base64
-from collections import namedtuple
 from getpass import getuser, getpass
-from lxml import html
 
-if sys.version_info[0] == 2:
-    from ConfigParser import ConfigParser
-    from urllib2 import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
-    from urllib import urlencode
-    input = raw_input
-else: # Python3
-    from configparser import ConfigParser
-    from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, build_opener
-    from urllib.parse import urlencode
-
-from tools.members import Members
-from tools.filetree import FileTree
-from tools.roominfo import RoomInfo
-from plugins import Color, MultipartPostHandler
-
-c = Color()
-col = c.colored
+from ananas import *
+from .plugins import MultipartPostHandler
 
 
 class Fronter(object):
@@ -42,13 +24,22 @@ class Fronter(object):
             print(col(' !! [fronter] org not set in fronter.conf', c.ERR))
             raise Exception
 
+        try:
+            fsv = conf.getint('fronter', 'studentview')
+            self._force_studentview = 1 if fsv else 0
+        except ValueError:
+            print(col(' !! [fronter] studentview must be integer (0/1)', c.ERR))
+            self._force_studentview = 0
+        except:
+            self._force_studentview = 0
+
         self.ROOT = 'https://fronter.com'
         self.TARGET = 'https://fronter.com/%s/' % org
 
         self.cookie_jar = HTTPCookieProcessor()
         self.opener = build_opener(HTTPRedirectHandler, MultipartPostHandler, self.cookie_jar)
-        self.rooms = []
         self.login(org)
+        self.get_rooms()
 
 
     def login(self, org):
@@ -105,7 +96,7 @@ class Fronter(object):
         print(col('\nNotifications:', c.HEAD))
         try:
             print(col(fmt, c.HL).format(*list(map(get_text, rows[0]))))
-        except:
+        except: # No notifications
             print(col(rows[0].text_content(), c.HL))
 
         for row in rows[1:]:
@@ -140,7 +131,8 @@ class Fronter(object):
         try:
             room = self.rooms[self.roomid]
             # If we don't do this, we just get the 'toolbar' at the top
-            url = self.TARGET + '/contentframeset.phtml?goto_prjid=%i' % room.id
+            url = self.TARGET + '/contentframeset.phtml?goto_prjid=%i&intostudentview=%i' \
+                  % (room.id, self._force_studentview)
             self.opener.open(url)
             # Read the 'toolbar' on the right hand side
             url = self.TARGET + '/navbar.phtml?goto_prjid=%i' % room.id

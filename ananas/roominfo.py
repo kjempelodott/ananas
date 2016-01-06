@@ -1,5 +1,5 @@
-from tempfile import mkstemp
-from tools import *
+from ananas import *
+from .plugins import parse_html
 
 
 class RoomInfo(Tool):
@@ -163,42 +163,5 @@ class RoomInfo(Tool):
         msg.content = msg.html.text or ''
 
         # Parse HTML
-        for elem in msg.html:
-
-            if elem.tag == 'table':
-                rows = []
-                try:
-                    for tr in elem:
-                        rows.append([td.text_content().strip() for td in tr])
-
-                    widths = list(map(max, [map(len, clm) for clm in zip(*rows)]))
-                    pieces = ['%-' + str(w + 2) + 's' for w in widths]
-
-                    table_content = '\n' + '-' * (sum(widths) + 4 + 2*len(widths)) + '\n'
-                    for row in rows:
-                        table_content += '| ' + ''.join(pieces) % tuple(row) + ' |\n'
-                    table_content += '-' * (sum(widths) + 4 + 2*len(widths)) + '\n'
-
-                    msg.content += table_content
-                except:
-                    msg.content += col('!! badass table', c.ERR)
-
-            elif elem.tag == 'ul':
-                msg.content += '\n'
-                for li in elem:
-                    msg.content += ' * ' + li.text_content() + '\n'
-                msg.content += '\n'
-
-            elif elem.tag == 'ol':
-                msg.content += '\n'
-                for i, li in enumerate(elem):
-                    msg.content += ' %i. ' % (i + 1) + li.text_content() + '\n'
-                msg.content += '\n'
-
-            else:
-                msg.content += elem.text_content()
-
-            # Trailing text after <br> etc ...
-            msg.content += elem.tail or ''
-
+        msg.content = parse_html(msg.html)
         print(msg.str())

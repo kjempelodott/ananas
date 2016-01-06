@@ -1,5 +1,5 @@
-from plugins import Mailserver
-from tools import *
+from ananas import *
+from .plugins import Mailserver
 
 
 class Members(Tool):

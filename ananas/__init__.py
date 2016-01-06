@@ -1,21 +1,34 @@
-import os, sys, re
+import os, sys, re, stat, base64
 from datetime import datetime
-from collections import OrderedDict
+from tempfile import mkstemp
+from collections import OrderedDict, namedtuple
 from lxml import html, etree
-from plugins import Color, Editor
 
 if sys.version_info[0] == 2:
+    from ConfigParser import ConfigParser
     from urllib import urlencode, unquote_plus
+    from urllib2 import BaseHandler, HTTPHandler, HTTPRedirectHandler, \
+        build_opener, HTTPCookieProcessor
     from HTMLParser import HTMLParser
     input = raw_input
 else:
+    from configparser import ConfigParser
+    from urllib.request import BaseHandler, HTTPHandler, HTTPRedirectHandler, \
+        HTTPCookieProcessor, build_opener
     from urllib.parse import urlencode, unquote_plus
     from html.parser import HTMLParser
 
+from .plugins import Color, Editor
 
 c = Color()
 col = c.colored
 txt = Editor()
+
+
+class NewToolInterrupt(BaseException):
+
+    def __init__(self, tool):
+        self.tool = tool
 
 
 class Tool(object):
@@ -54,8 +67,11 @@ class Tool(object):
         inputs = form.xpath('input[@type="hidden"]')
         payload = dict((i.name, i.get('value')) for i in inputs)
 
-        url = form.get('action')
-        if not url.startswith(self.TARGET):
-            url = url.lstrip('..')
-
+        url = form.get('action').lstrip('..')
         return url, payload
+
+
+from .survey import Survey
+from .members import Members
+from .filetree import FileTree
+from .roominfo import RoomInfo

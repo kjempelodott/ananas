@@ -1,39 +1,36 @@
 from glob import glob
-from tempfile import mkstemp
 from shutil import copyfileobj
-from collections import namedtuple
 from difflib import SequenceMatcher
-from tools import *
+from ananas import *
 
 
 class FileTree(Tool):
 
     class Branch(object):
 
-        def __init__(self, title, treeid, parent = None):
+        def __init__(self, title, url, treeid, parent = None):
 
             self.title = title
+            self.url = url
             self.treeid = treeid
             self.parent = parent
             self.path = '/' if not parent else parent.path + title + '/'
-            self.children = { 'leafs' : [], 'branches' : [], 'tests' : [] }
+            self.children = { 'leafs' : [], 'branches' : [] }
             self.menu = {}
 
         def str(self):
             return col(self.title, c.DIR)
 
-
-    class Leaf(Branch):
+    class Leaf(object):
 
         _imp = {'multi_delete' : 'del', 'new_comment' : 'eval', 'get' : 'get'}
 
         Menu = namedtuple('Menu', ['name', 'url'])
 
-        def __init__(self, title, url, parent):
+        def __init__(self, title, url):
 
             self.title = title
             self.url = url
-            self.parent = parent
             self.menu = {'get' : None}
 
         def str(self):
@@ -50,23 +47,9 @@ class FileTree(Tool):
                 except (AssertionError, ValueError, IndexError):
                     continue
 
-
-    class Test(Leaf):
-
-        def __init__(self, title, url, parent):
-
-            self.title = title
-            self.url = url.lstrip('..')
-            self.parent = parent
-            self.menu = {}
-
-        def str(self):
-            return col(self.title, c.HL)
-
-
     class Delivery(Leaf):
 
-        def __init__(self, firstname, lastname, url, date, status, parent):
+        def __init__(self, firstname, lastname, url, date, status):
 
             self.firstname = firstname
             self.lastname = lastname
@@ -74,12 +57,50 @@ class FileTree(Tool):
             self.url = url
             self.date = col(date.strftime('%Y-%m-%d'), c.HL, True) if date else col('NA', c.ERR, True)
             self.status = col(status, c.HEAD) if status else col('NA', c.ERR)
-            self.parent = parent
             self.menu = {}
 
         def str(self):
             return '%-20s %-40s %s' % (self.date, self.title, self.status)
-                
+
+        @staticmethod
+        def _parse(xml, menus):
+
+            tr_odd = xml.xpath('//tr[@class="tablelist-odd"]')
+            tr_even = xml.xpath('//tr[@class="tablelist-even"]')
+
+            _tmp = []
+
+            for tr in tr_odd + tr_even:
+                try:
+                    name   = tr.xpath('td[2]/label')[0] # IndexError (not an assignment row)
+                    url    = tr.xpath('td[3]')[0]
+                    date   = tr.xpath('td[4]/label')[0]
+                    status = tr.xpath('td[5]/img')
+
+                    first = name.text.strip()
+                    last  = name.getchildren()[0].text
+                    last  = '' if not last else last.strip()
+
+                    menu = ''
+                    try:
+                        # ValueError (not delivered)
+                        date = datetime.strptime(date.text.strip(),'%Y-%m-%d')
+                        menu_id = url.xpath('a[@class="ez-menu"]')[0].get('name')
+                        url = url.xpath('a[@class=""]')[0].get('href').strip()
+                        status = status[0].get('src').split('/')[-1].split('.')[0].replace('_', ' ')
+                        menu = menus[menu_id]
+                    except ValueError:
+                        url = date = status = None
+
+                    leaf = FileTree.Delivery(first, last, url, date, status)
+                    leaf.make_menu(menu)
+                    _tmp.append(leaf)
+
+                except IndexError:
+                    continue
+
+            return sorted(_tmp, key=lambda x: x.title)
+
 
     def __init__(self, client, url):
 
@@ -112,52 +133,15 @@ class FileTree(Tool):
         
         response = self.opener.open(self.url)
         treeid = int(re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0])
-        root = FileTree.Branch('', treeid)
-        self.__trees__ = {} # Keeps all branches in memory
+        url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
+        root = FileTree.Branch('', url, treeid)
+        self.__branches__ = {} # Keeps all branches in memory
         self.goto_branch(root)
     
 
     def refresh(self):
 
         self.goto_branch(self.cwd, True)
-
-
-    def _parse_task(self, xml, menus):
-
-        tr_odd = xml.xpath('//tr[@class="tablelist-odd"]')
-        tr_even = xml.xpath('//tr[@class="tablelist-even"]')
-
-        _tmp = {}
-
-        for tr in tr_odd + tr_even:
-            try:
-                name   = tr.xpath('td[2]/label')[0] # IndexError (not an assignment row)
-                url    = tr.xpath('td[3]')[0]
-                date   = tr.xpath('td[4]/label')[0]
-                status = tr.xpath('td[5]/img')
-
-                first = name.text.strip()
-                last  = name.getchildren()[0].text
-                last  = '' if not last else last.strip()
-
-                menu = ''
-                try:
-                    date = datetime.strptime(date.text.strip(),'%Y-%m-%d') # ValueError (not delivered)
-                    menu_id = url.xpath('a[@class="ez-menu"]')[0].get('name')
-                    url = url.xpath('a[@class=""]')[0].get('href').strip()
-                    status = status[0].get('src').split('/')[-1].split('.')[0].replace('_', ' ')
-                    menu = menus[menu_id]
-                except ValueError:
-                    url = date = status = None
-
-                leaf = FileTree.Delivery(first, last, url, date, status, self.cwd)
-                leaf.make_menu(menu)
-                _tmp[first] = leaf
-
-            except IndexError:
-                continue
-
-        self.cwd.children['leafs'] = [_tmp[k] for k in sorted(_tmp)]
 
 
     def _parse(self, xml, menus, refresh = False):
@@ -171,52 +155,63 @@ class FileTree(Tool):
             menu = menus[menu_id]
             name = link.text.strip()
             try:
-                assert(not refresh)
-                tid = int(re.findall('treeid=([0-9]+)', href)[0])
-                self.cwd.children['branches'].append(FileTree.Branch(name, tid, self.cwd))
+                assert(not refresh) # Add/delete folders not implemented
+                tid = int(re.findall('[tree|survey]id=([0-9]+)', href)[0])
+                branch = None
+                if 'questiontest' in href: # Surveys are sort of 'folders'
+                    continue # Skip until Surveys are actually working
+                    url = self.TARGET + '/questiontest/index.phtml?' \
+                          'action=show_test&surveyid=%i&force=1' % tid
+                    branch = Survey(self.opener, name, url, tid)
+                else:
+                    url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % tid
+                    branch = FileTree.Branch(name, url, tid, self.cwd)
+                self.cwd.children['branches'].append(branch)
             except (AssertionError, IndexError):
                 if 'files.phtml' in href:
-                    self.cwd.children['leafs'].append(FileTree.Leaf(name, href, self.cwd))
+                    self.cwd.children['leafs'].append(FileTree.Leaf(name, href))
                     self.cwd.children['leafs'][-1].make_menu(menu)
-                elif 'questiontest' in href:
-                    self.cwd.children['tests'].append(FileTree.Test(name, href, self.cwd))
 
 
     def goto_branch(self, branch, refresh = False):
 
         treeid = branch.treeid
-        if treeid in self.__trees__ and not refresh:
-            self.cwd = branch
+        if treeid in self.__branches__ and not refresh:
+            if isinstance(branch, Survey):
+                raise NewToolInterrupt(branch)
+            else:
+                self.cwd = branch
             return
 
-        url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
-        response = self.opener.open(url)
+        response = self.opener.open(branch.url)
         data = response.read()
         xml = html.fromstring(data)
-        branch.is_task = bool(xml.xpath('//td/label[@for="folder_todate"]'))
 
-        menus = dict((mid, menu) for mid, menu in
-                     re.findall('ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)', 
-                                data.decode('utf-8')))
+        if isinstance(branch, Survey):
+            branch._parse(xml)
+            self.__branches__[treeid] = branch
+            raise NewToolInterrupt(branch)
 
-        branch.children['leafs'] = []
-        branch.children['tests'] = []
+        else: # Regular 'folder' with files
+            self.cwd = branch
+            branch.children['leafs'] = []
 
-        self.cwd = branch
-        if branch.is_task:
-            self._parse_task(xml, menus)
-        else:
-            self._parse(xml, menus, refresh)
+            menus = dict((mid, menu) for mid, menu in
+                         re.findall('ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)',
+                                    data.decode('utf-8')))
 
-        self.__trees__[treeid] = branch
+            if bool(xml.xpath('//td/label[@for="folder_todate"]')):
+                self.cwd.children['leafs'] = FileTree.Delivery._parse(xml, menus)
+            else:
+                self._parse(xml, menus, refresh)
+
+        self.__branches__[treeid] = branch
 
 
     def print_content(self):
 
         print(col(self.cwd.path, c.HEAD))
-        for idx, item in enumerate(self.cwd.children['branches'] +
-                                   self.cwd.children['tests'] +
-                                   self.cwd.children['leafs']):
+        for idx, item in enumerate(self.cwd.children['branches'] + self.cwd.children['leafs']):
             print(col('[%-3i] ' % (idx + 1), c.HL) + item.str())
         
 
@@ -265,7 +260,7 @@ class FileTree(Tool):
                     url += href.lstrip('..')
                     break
         else:
-            url += '/links/structureprops.phtml?php_action=file&treeid=%i' % self.cwd.treeid
+            url = self.cwd.url
 
         response = self.opener.open(url)
         xml = html.fromstring(response.read())
@@ -306,7 +301,7 @@ class FileTree(Tool):
                 continue
 
             fname = unquote_plus(os.path.basename(leaf.url))
-            if self.cwd.is_task:
+            if isinstance(leaf, FileTree.Delivery):
                 fname = '%s_%s' % (leaf.lastname, fname)
             fname = os.path.join(folder, fname)
 
@@ -379,11 +374,11 @@ class FileTree(Tool):
 
     def evaluate(self, idx, batch = False, **kwargs):
 
-        comment = cfile = grade = evaluation = ''
-
         leaf = self._get_leaf(idx)
         if not leaf:
             return
+
+        comment = cfile = grade = evaluation = ''
 
         if not 'new_comment' in leaf.menu:
             print(col(' !! commenting not available (%s)' % leaf.title))
@@ -509,7 +504,7 @@ class FileTree(Tool):
     def evaluate_all(self):
 
         if not self.cwd.children['leafs']:
-            print(col('!! nothing to evaluate', c.ERR))
+            print(col(' !! nothing to evaluate', c.ERR))
             return
 
         folder = os.getcwd()
@@ -525,7 +520,7 @@ class FileTree(Tool):
 
                     name, idx = student.get('name').lower(), None
                     if not name:
-                        print(col('!! missing student name', c.ERR))
+                        print(col(' !! missing student name', c.ERR))
                         continue
 
                     _cmp = []
@@ -552,7 +547,7 @@ class FileTree(Tool):
                             break
 
                     if not cfile and not comment:
-                        print(col('!! no comment or comments file (%s)' % name, c.ERR))
+                        print(col(' !! no comment or comments file (%s)' % name, c.ERR))
 
                     print('%-45s %s' % (col(name, c.HL, True), comment[0][:30] + ' ...'))
 
@@ -608,7 +603,7 @@ class FileTree(Tool):
 
     def _get_leaf(self, idx):
 
-        idx = int(idx) - len(self.cwd.children['branches']) - len(self.cwd.children['tests'])
+        idx = int(idx) - len(self.cwd.children['branches'])
         if idx < 1:
             print(col(' !! not a file', c.ERR))
             return

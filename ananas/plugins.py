@@ -1,21 +1,11 @@
-import sys, os, stat, base64
 import smtplib, mimetypes
 from subprocess import call
-from tempfile import mkstemp
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.generator import _make_boundary as choose_boundary
 
-if sys.version_info[0] == 2:
-    from ConfigParser import ConfigParser
-    from urllib2 import HTTPHandler, BaseHandler
-    from urllib import urlencode
-    input = raw_input
-else:
-    from configparser import ConfigParser
-    from urllib.request import HTTPHandler, BaseHandler
-    from urllib.parse import urlencode
+from ananas import *
 
 
 class Editor():
@@ -177,3 +167,47 @@ class MultipartPostHandler(BaseHandler):
         return bnd, buffer
 
     https_request = http_request
+
+
+def parse_html(xml):
+
+    content = ''
+    for elem in xml:
+
+        if elem.tag == 'table':
+            rows = []
+            try:
+                for tr in elem:
+                    rows.append([td.text_content().strip() for td in tr])
+
+                widths = list(map(max, [map(len, clm) for clm in zip(*rows)]))
+                pieces = ['%-' + str(w + 2) + 's' for w in widths]
+
+                table_content = '\n' + '-' * (sum(widths) + 4 + 2*len(widths)) + '\n'
+                for row in rows:
+                    table_content += '| ' + ''.join(pieces) % tuple(row) + ' |\n'
+                table_content += '-' * (sum(widths) + 4 + 2*len(widths)) + '\n'
+
+                content += table_content
+            except:
+                content += col('!! badass table', c.ERR)
+
+        elif elem.tag == 'ul':
+            content += '\n'
+            for li in elem:
+                content += ' * ' + li.text_content() + '\n'
+            content += '\n'
+
+        elif elem.tag == 'ol':
+            content += '\n'
+            for i, li in enumerate(elem):
+                content += ' %i. ' % (i + 1) + li.text_content() + '\n'
+            content += '\n'
+
+        else:
+            content += elem.text_content()
+
+        # Trailing text after <br> etc ...
+        content += elem.tail or ''
+
+    return content

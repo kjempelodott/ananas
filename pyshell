@@ -16,8 +16,9 @@ else:
     from urllib.error import URLError
 
 from socket import gaierror
-from fronter import Fronter
-from plugins import Color
+from ananas import NewToolInterrupt
+from ananas.plugins import Color
+from ananas.fronter import Fronter
 
 c = Color()
 col = c.colored
@@ -41,10 +42,15 @@ def loop(instr):
                 break
             except KeyboardInterrupt:
                 print('')
+            except NewToolInterrupt as ex:
+                print('')
+                shellify(ex.tool)
+                print('> exiting ' + ex.tool.str())
+
     return magic
 
 
-def enter_loop(tool):
+def shellify(tool):
 
     if not tool:
         return
@@ -84,14 +90,11 @@ def start_shell():
     except (URLError, gaierror):
         print(col('No internet connection', c.ERR))
         sys.exit(0)
-    except:
-        sys.exit(0)
-        
-    client.get_rooms() 
+
+    client.print_notifications()
 
     @loop
     def select_room():
-        client.print_notifications()
         print(col('\nreturn <Ctrl-D>', c.HL))
         client.print_rooms()
 
@@ -107,7 +110,7 @@ def start_shell():
             tool = client.select_tool(idx)
             print('')
 
-            enter_loop(tool)
+            shellify(tool)
 
         select_tool()
 
