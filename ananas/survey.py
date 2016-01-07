@@ -1,6 +1,7 @@
 from ananas import *
 from .plugins import parse_html
 
+
 class Survey(Tool):
 
     class Result(object):
@@ -15,64 +16,81 @@ class Survey(Tool):
             self.score = score if score else 0
             self.payload = payload
 
+
         def str(self):
             return '%-21s %-40s %3i%% %s' % (self.date, self.title, self.score, self.status)
 
-    class Page(object):
 
-        Question = namedtuple('Question', ('text', 'answers', 'id'))
-        Answer   = namedtuple('Answer'  , ('text', 'id'))
+    class Question():
 
-        def __init__(self, ul_xml, pageno):
-            
-            self.title = ul_xml[0].xpath('//td[@style="vertical-align: top;"]')[0].text.strip()
-            self.infotext = parse_html(ul_xml[0])
+        Answer  = namedtuple('Answer'  , ('value', 'id'))
+        Hints   = {'radio'    : 'one answer',
+                   'checkbox' : 'multiple choice',
+                   'textarea' : 'written answer'}
+        Prompts = {'radio'    : 'answer <index>',
+                   'checkbox' : 'answer <index index ... >',
+                   'textarea' : 'press ENTER to open editor'}
 
-            self.questions = {}
-            self.replies = None
+        def __init__(self, text, number, qid, answers = [], qtype = None):
 
-            for i, item in enumerate(ul_xml[1:]):
-                no = col('%i.%i' % (pageno, i), c.HL)
-                text = parse_html(item)
+            self.text = text
+            self.number = number
+            self.answers = answers
+            self.qid = qid
+            self.qtype = qtype
 
-                fields = item.getnext()
-                answers = []
-                if fields != None and fields.tag == 'fieldset':
-                    for a in fields.xpath('.//input[@type="radio"]'):
-                        answers.append(self.Answer(a.text, a.get('id')))
+            self.title = text.split('\n')[0]
+            self.hint = Survey.Question.Hints.get(qtype, '')
+            self.prompt = Survey.Question.Prompts.get(qtype, '')
+            self.max = 1 if self.qtype == 'radio' else len(self.answers)
 
-                qid = item.getprevious().get('name')
-                self.questions[no] = self.Question(text, answers, qid)
+            self.given_answer = self.__submit__ = None
 
-        def str(self):
-            return self.title[:60] + (' ...' if len(self.title) > 60 else '')
 
-        def do(self):
+        def ask(self):
 
-            print(col(self.infotext, c.HL) + '\n')
-            for no, q in self.questions.iterkeys():
-                print(no + ' ' + q.text)
-                for i, a in enumerate(q.answers):
-                    print(col('[%-3i] ' % (i + 1), c.HL) + a)
+            print('\n' + col(self.number, c.HEAD) + ' ' + self.text + '\n')
+            if not self.answers:
+                return
 
-            reply = ''
+            if self.qtype != 'textarea':
+                for i, ans in enumerate(self.answers):
+                    print(col('[%-3i] ' % (i + 1), c.HL) + ans.value)
+                print('\n' + col(self.hint, c.ERR))
+
             while 1:
                 prev = ''
-                if self.replies:
-                    prev = '(' + col(' '.join(str(i) for i in self.replies), c.HL) + ') '
+                if self.given_answer:
+                    prev = col('(' + self.given_answer + ') ', c.HL)
 
                 try:
-                    reply = input('> answer <index index ... > : ' + prev).strip()
-                    if not reply and self.replies:
+                    reply = input('> %s %s: ' % (self.prompt, prev)).strip()
+                    if self.qtype == 'textarea':
+                        pass
+                    if not reply and self.given_answer:
                         break
-                    ri = map(int, reply.split()) # ValueError
-                    assert(len(ri.split()) == len(self.questions))
-                    self.replies = [q.answers[i-1] for i, q in zip(ri, self.questions)] # IndexError
+
+                    ix = map(int, reply.split()) # ValueError
+                    assert(len(ix) <= self.max)
+                    if not all(i > 0 for i in ix):
+                        raise IndexError
+
+                    self.__submit__ = [self.answers[i-1] for i in ix] # IndexError
+                    self.given_answer = ' '.join(map(str, ix))
                     break
+                except ValueError:
+                    print(col(' !! (space separated) integer(s) required', c.ERR))
+                except IndexError:
+                    print(col(' !! answer out of range', c.ERR))
                 except AssertionError:
                     print(col(' !! wrong number of answers given', c.ERR))
-                except KeyboardInterrupt: # Catch it: don't break Survey tool loop
-                    break
+
+
+        def str(self):
+            return '%-6s %-60s ... %s' % (col(self.number, c.HEAD, True),
+                                          self.title[:60],
+                                          col('*', c.ERR) if not self.max or self.__submit__ else '')
+
 
     def __init__(self, opener, title, url, surveyid):
 
@@ -82,38 +100,41 @@ class Survey(Tool):
         self.treeid = surveyid
         super(Survey, self).__init__()
 
+        self.questions = []
+
+
+    def str(self):
+        return col(self.title, c.HL)
+
+
     def print_results(self):
-
         print(col(self.title, c.HEAD))
-        for idx, item in enumerate(self.results):
-            print(col('[%-3i] ' % (idx + 1), c.HL) + item.str())
+        for idx, result in enumerate(self.results):
+            print(col('[%-3i] ' % (idx + 1), c.HL) + result.str())
 
-    def print_pages(self):
 
-        print(col(self.title, c.HEAD))
-        for idx, item in enumerate(self.pages):
-            print(col('[%-3i] ' % idx, c.HL) + item.str())
+    def print_questions(self):
+        for idx, q in enumerate(self.questions):
+            print(col('[%-3i] ' % (idx + 1), c.HL) + q.str())
 
-    def goto_page(self, idx):
-        self.pages[idx].do()
+
+    def goto_question(self, idx):
+        idx = int(idx) - 1
+        if idx < 0:
+            raise IndexError
+        self.questions[idx].ask()
+
 
     def take_survey(self):
-        
-        try:
-            for page in self.pages:
-                page.do()
-        except KeyboardInterrupt: # Catch it: don't break Survey tool loop
-            pass
+        for q in self.questions:
+            q.ask()
 
 
     def submit(self):
         pass
 
-    def str(self):
-        return col(self.title, c.HL)
-        
 
-    def _parse(self, xml):
+    def parse(self, xml):
 
         url, payload = self.prepare_form(xml)
         self.form = {'url' : url, 'payload' : payload }
@@ -137,33 +158,80 @@ class Survey(Tool):
 
         else:
 
-            self.commands['ls'] = Tool.Command('ls', self.print_pages, '', 'list survey pages')
+            npages = 0
+            try:
+                npages = int(re.search('Side: [0-9]+/([0-9]+)', xml.text_content()).groups()[0])
+            except:
+                print(col(' !! inactive survey', c.ERR))
+                return
+
+            self.commands['ls'] = Tool.Command('ls', self.print_questions, '', 'list questions')
+            self.commands['get'] = Tool.Command('get', self.goto_question,
+                                                '<index>', 'go to specific question')
             self.commands['go']   = Tool.Command('go', self.take_survey, '', 'take survey')
-            self.commands['goto'] = Tool.Command('goto', self.goto_page,
-                                                 '<index>', 'go to specific page')
-            self.commands['post'] = Tool.Command('post', self.submit, '', 'submit answers')
+            self.commands['post'] = Tool.Command('post', self.submit, '', 'review and submit answers')
 
             print(col(' ## loading questions ...', c.ERR))
-            items = xml.xpath('//table/tr/td/ul')
-            self.pages.append(Survey.Page(items, 0))
 
-            pageno = 1
-            npages = int(re.search('Side: [0-9]+/([0-9]+)', xml.text_content()).groups()[0])
+            pageno = 0
             surveyid = int(payload['surveyid'])
-            
-            while pageno <= npages:
-                payload['pageno']   = str(pageno)
-                payload['surveyid'] = payload['check_surveyid'] = str(surveyid)
-                
-                response = self.opener.open(url, urlencode(payload).encode('ascii'))
-                data = response.read()
-                xml = html.fromstring(data)
 
-                items = xml.xpath('//table/tr/td/ul')[0]
-                self.pages.append(Survey.Page(items, pageno))
+            items = xml.xpath('//table/tr/td/ul')
+            self._parse_page(items, pageno)
 
+            while pageno < npages:
                 pageno   += 1
                 surveyid += 1
+
+                payload['pageno']   = str(pageno)
+                payload['surveyid'] = payload['check_surveyid'] = str(surveyid)
+
+                response = self.opener.open(url, urlencode(payload).encode('ascii'))
+                xml = html.fromstring(response.read())
+
+                items = xml.xpath('//table/tr/td/ul')
+                self._parse_page(items, pageno)
+
+        return True
+
+
+    def _parse_page(self, xmls, pageno):
+
+        for i, xml in enumerate(xmls):
+
+            # fronter HTLM is fucked up
+            to_parse = []
+            more_text = xml[0].getnext()
+            while more_text != None and more_text.tag not in ('textarea', 'fieldset'):
+                to_parse.append(more_text)
+                more_text = more_text.getnext()
+
+            more_text = xml.getnext()
+            while more_text != None and more_text.tag != 'ul':
+                to_parse.append(more_text)
+                more_text = more_text.getnext()
+
+            text = (xml[0].text_content().strip() + '\n' + parse_html(to_parse)).strip()
+
+            radio = xml.xpath('.//input[@type="radio"]')
+            checkbox = xml.xpath('.//input[@type="checkbox"]')
+            textarea = xml.xpath('../ul/textarea[@class="question-textarea"]')
+
+            qid = xml.getprevious().get('name')
+            no = col('%i.%i' % (pageno + 1, i + 1), c.HEAD)
+
+            if radio:
+                answers = [Survey.Question.Answer(a.label.text, a.get('id')) for a in radio]
+                self.questions.append(Survey.Question(text, no, qid, answers, 'radio'))
+            elif checkbox:
+                answers = [Survey.Question.Answer(a.label.text, a.get('id')) for a in checkbox]
+                self.questions.append(Survey.Question(text, no, qid, answers, 'checkbox'))
+            elif textarea:
+                answers = Survey.Question.Answer('', textarea[0].get('id'))
+                self.questions.append(Survey.Question(text, no, qid, answers, 'textarea'))
+                break
+            else:
+                self.questions.append(Survey.Question(text, no, qid))
 
 
     @staticmethod

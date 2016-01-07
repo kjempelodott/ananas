@@ -63,7 +63,7 @@ class FileTree(Tool):
             return '%-20s %-40s %s' % (self.date, self.title, self.status)
 
         @staticmethod
-        def _parse(xml, menus):
+        def parse(xml, menus):
 
             tr_odd = xml.xpath('//tr[@class="tablelist-odd"]')
             tr_even = xml.xpath('//tr[@class="tablelist-even"]')
@@ -144,7 +144,7 @@ class FileTree(Tool):
         self.goto_branch(self.cwd, True)
 
 
-    def _parse(self, xml, menus, refresh = False):
+    def parse(self, xml, menus, refresh = False):
 
         links = xml.xpath('//a[@class="black-link"]')
         menu_ids = xml.xpath('//a[@class="ez-menu"]')
@@ -188,9 +188,10 @@ class FileTree(Tool):
         xml = html.fromstring(data)
 
         if isinstance(branch, Survey):
-            branch._parse(xml)
-            self.__branches__[treeid] = branch
-            raise NewToolInterrupt(branch)
+            if branch.parse(xml):
+                self.__branches__[treeid] = branch
+                raise NewToolInterrupt(branch)
+            return
 
         else: # Regular 'folder' with files
             self.cwd = branch
@@ -201,9 +202,9 @@ class FileTree(Tool):
                                     data.decode('utf-8')))
 
             if bool(xml.xpath('//td/label[@for="folder_todate"]')):
-                self.cwd.children['leafs'] = FileTree.Delivery._parse(xml, menus)
+                self.cwd.children['leafs'] = FileTree.Delivery.parse(xml, menus)
             else:
-                self._parse(xml, menus, refresh)
+                self.parse(xml, menus, refresh)
 
         self.__branches__[treeid] = branch
 

@@ -26,12 +26,12 @@ class Fronter(object):
 
         try:
             fsv = conf.getint('fronter', 'studentview')
-            self._force_studentview = 1 if fsv else 0
+            self.__studentview__ = 1 if fsv else 0
         except ValueError:
             print(col(' !! [fronter] studentview must be integer (0/1)', c.ERR))
-            self._force_studentview = 0
+            self.__studentview__ = 0
         except:
-            self._force_studentview = 0
+            self.__studentview__ = 0
 
         self.ROOT = 'https://fronter.com'
         self.TARGET = 'https://fronter.com/%s/' % org
@@ -131,8 +131,7 @@ class Fronter(object):
         try:
             room = self.rooms[self.roomid]
             # If we don't do this, we just get the 'toolbar' at the top
-            url = self.TARGET + '/contentframeset.phtml?goto_prjid=%i&intostudentview=%i' \
-                  % (room.id, self._force_studentview)
+            url = self.TARGET + '/contentframeset.phtml?goto_prjid=%i' % room.id
             self.opener.open(url)
             # Read the 'toolbar' on the right hand side
             url = self.TARGET + '/navbar.phtml?goto_prjid=%i' % room.id
@@ -152,9 +151,15 @@ class Fronter(object):
             if not room.tools:
                 print(col(' !! no tools available', c.ERR))
 
+            elif self.__studentview__:
+                # Reload page with studentview if set in config
+                # Sometimes page won't load if not loaded as admin first
+                url = self.TARGET + '/contentframeset.phtml?goto_prjid=%i&intostudentview=1' % room.id
+                self.opener.open(url)
+
         except AttributeError: # Should only happen in interactive session
             print(col(' !! you must select a room first', c.ERR))
-        
+
 
     def select_tool(self, idx):
 
