@@ -16,7 +16,6 @@ class Survey(Tool):
             self.score = score if score else 0
             self.payload = payload
 
-
         def str(self):
             return '%-21s %-40s %3i%% %s' % (self.date, self.title, self.score, self.status)
 
@@ -25,7 +24,7 @@ class Survey(Tool):
 
         CHECKED   = col('[', c.ERR) + col('*', c.HL) + col(']', c.ERR)
         UNCHECKED = col('[', c.ERR) + ' ' + col(']', c.ERR)
-        Answer    = namedtuple('Answer'  , ('value', 'id'))
+        Answer    = namedtuple('Answer'  , ('text', 'value'))
         Hints     = {'radio'    : 'one answer',
                      'checkbox' : 'multiple choice',
                      'textarea' : 'written answer'}
@@ -46,7 +45,8 @@ class Survey(Tool):
             self.prompt = Survey.Question.Prompts.get(qtype, '')
             self.max = 1 if self.qtype == 'radio' else len(self.answers)
 
-            self.given_answer = self.__submit__ = None
+            self.given_answer = None
+            self.__submit__ = []
             self.checkbox = Survey.Question.UNCHECKED if self.max else Survey.Question.CHECKED
 
 
@@ -62,7 +62,7 @@ class Survey(Tool):
 
             if self.qtype != 'textarea':
                 for i, ans in enumerate(self.answers):
-                    print(col('[%-3i] ' % (i + 1), c.HL) + ans.value)
+                    print(col('[%-3i] ' % (i + 1), c.HL) + ans.text)
                 print('\n' + col(self.hint, c.ERR))
 
             while 1:
@@ -89,6 +89,9 @@ class Survey(Tool):
                             with os.fdopen(txt.new(), 'rb') as f:
                                 self.given_answer = f.read().strip()
                                 self._textf = f.name
+
+                        self.answers[0].value = self.given_answer
+                        self.__submit__ = [self.answers[0]]
                         return
 
                     reply = input('> %s %s: ' % (self.prompt, prev)).strip()
@@ -150,19 +153,49 @@ class Survey(Tool):
         for q in self.questions:
             q.ask()
 
+    #TODO
+    def print_replies(self):
+        payload = self.form['payload']
+        payload['action'] = 'show_reply_list'
+
+    #TODO
+    def get_reply(self, idx):
+        idx = int(idx) - 1
+        if idx < 0:
+            raise IndexError
+
 
     def submit(self):
-        pass
+        #TODO
+        #review()
+
+        url     = self.form['url']
+        payload = dict((q.qid, [a.value for a in q.__submit__]) for q in self.questions)
+
+        payload.update(self.form['payload'])
+        payload['test_section'] = payload['surveyid']
+        payload['do_action']    = 'send_answer'
+        payload['action']       = ''
+
+        response = self.opener.open(url, urlencode(payload).encode('ascii'))
+        xml = html.fromstring(response.read())
+
+        for span in xml.xpath('//span[@class="label"]'):
+            percent = re.search('\d+%', span.text)
+            if percent:
+                print(col('Score: ' + percent.group(), c.HEAD))
+                break
+        else:
+            print(col(' !! something went wrong', c.ERR))
 
 
     def parse(self, xml):
 
         url, payload = self.prepare_form(xml)
         self.form = {'url' : url, 'payload' : payload }
-        self.pages = []
         self.results = []
 
-        if not payload['viewall'] == '1': # You are admin
+        if payload['viewall'] != '1': # You are admin
 
             self.commands['ls'] = Tool.Command('ls', self.print_results, '', 'list results and scores')
             self.results = Survey._parse_admin(xml)
@@ -186,11 +219,14 @@ class Survey(Tool):
                 print(col(' !! inactive survey', c.ERR))
                 return
 
-            self.commands['ls'] = Tool.Command('ls', self.print_questions, '', 'list questions')
-            self.commands['get'] = Tool.Command('get', self.goto_question,
-                                                '<index>', 'go to specific question')
+            self.commands['ls']   = Tool.Command('ls', self.print_questions, '', 'list questions')
             self.commands['go']   = Tool.Command('go', self.take_survey, '', 'take survey')
+            self.commands['goto'] = Tool.Command('goto', self.goto_question,
+                                                 '<index>', 'go to specific question')
             self.commands['post'] = Tool.Command('post', self.submit, '', 'review and submit answers')
+            self.commands['lr']   = Tool.Command('lr', self.print_replies, '', 'list replies')
+            self.commands['get']  = Tool.Command('get', self.get_reply, '<index>',
+                                                 'read comments to a reply')
 
             print(col(' ## loading questions ...', c.ERR))
 
@@ -198,9 +234,10 @@ class Survey(Tool):
             surveyid = int(payload['surveyid'])
 
             items = xml.xpath('//table/tr/td/ul')
-            idx = self._parse_page(items, 0)
+            idx, questions = self._parse_page(items, 0)
+            self.questions.extend(questions)
 
-            while pageno < npages:
+            while pageno < npages - 1:
                 pageno   += 1
                 surveyid += 1
 
@@ -211,13 +248,24 @@ class Survey(Tool):
                 xml = html.fromstring(response.read())
 
                 items = xml.xpath('//table/tr/td/ul')
-                idx = self._parse_page(items, idx)
+                idx, questions = self._parse_page(items, idx)
+                self.questions.extend(questions)
+
+            for script in xml.xpath('//script[@type="text/javascript"]')[::-1]:
+                submithash = re.search('submithash\.value\s?=\s?"(\w+)";', script.text_content())
+                if submithash:
+                    payload['submithash'] = submithash.groups()[0]
+                    break
+            else:
+                print(col(' !! failed to find submit hash', c.ERR))
 
         return True
 
 
-    def _parse_page(self, xmls, idx):
+    @staticmethod
+    def _parse_page(xmls, idx):
 
+        questions = []
         for i, xml in enumerate(xmls):
             idx += 1
 
@@ -242,19 +290,19 @@ class Survey(Tool):
             qid = xml.getprevious().get('name')
 
             if radio:
-                answers = [Survey.Question.Answer(a.label.text, a.get('id')) for a in radio]
-                self.questions.append(Survey.Question(text, idx, qid, answers, 'radio'))
+                answers = [Survey.Question.Answer(a.label.text, a.get('value')) for a in radio]
+                questions.append(Survey.Question(text, idx, qid, answers, 'radio'))
             elif checkbox:
-                answers = [Survey.Question.Answer(a.label.text, a.get('id')) for a in checkbox]
-                self.questions.append(Survey.Question(text, idx, qid, answers, 'checkbox'))
+                answers = [Survey.Question.Answer(a.label.text, a.get('value')) for a in checkbox]
+                questions.append(Survey.Question(text, idx, qid, answers, 'checkbox'))
             elif textarea:
-                answers = Survey.Question.Answer('', textarea[0].get('id'))
-                self.questions.append(Survey.Question(text, idx, qid, answers, 'textarea'))
+                answers = [Survey.Question.Answer('', textarea[0].get('value'))]
+                questions.append(Survey.Question(text, idx, qid, answers, 'textarea'))
                 break
             else:
-                self.questions.append(Survey.Question(text, idx, qid))
+                questions.append(Survey.Question(text, idx, qid))
 
-        return idx
+        return idx, questions
 
 
     @staticmethod
