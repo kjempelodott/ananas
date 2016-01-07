@@ -23,18 +23,20 @@ class Survey(Tool):
 
     class Question():
 
-        Answer  = namedtuple('Answer'  , ('value', 'id'))
-        Hints   = {'radio'    : 'one answer',
-                   'checkbox' : 'multiple choice',
-                   'textarea' : 'written answer'}
-        Prompts = {'radio'    : 'answer <index>',
-                   'checkbox' : 'answer <index index ... >',
-                   'textarea' : 'press ENTER to open editor'}
+        CHECKED   = col('[', c.ERR) + col('*', c.HL) + col(']', c.ERR)
+        UNCHECKED = col('[', c.ERR) + ' ' + col(']', c.ERR)
+        Answer    = namedtuple('Answer'  , ('value', 'id'))
+        Hints     = {'radio'    : 'one answer',
+                     'checkbox' : 'multiple choice',
+                     'textarea' : 'written answer'}
+        Prompts  = {'radio'    : 'answer <index>',
+                    'checkbox' : 'answer <index index ... >',
+                    'textarea' : 'open editor (y/n)'}
 
-        def __init__(self, text, number, qid, answers = [], qtype = None):
+        def __init__(self, text, idx, qid, answers = [], qtype = None):
 
             self.text = text
-            self.number = number
+            self.idx = idx
             self.answers = answers
             self.qid = qid
             self.qtype = qtype
@@ -45,11 +47,16 @@ class Survey(Tool):
             self.max = 1 if self.qtype == 'radio' else len(self.answers)
 
             self.given_answer = self.__submit__ = None
+            self.checkbox = Survey.Question.UNCHECKED if self.max else Survey.Question.CHECKED
+
+
+        def str(self):
+            return '%-60s ... %s' % (self.title[:60], self.checkbox)
 
 
         def ask(self):
 
-            print('\n' + col(self.number, c.HEAD) + ' ' + self.text + '\n')
+            print('\n' + col('Q #%i ' % self.idx, c.HEAD) + self.text)
             if not self.answers:
                 return
 
@@ -64,19 +71,39 @@ class Survey(Tool):
                     prev = col('(' + self.given_answer + ') ', c.HL)
 
                 try:
-                    reply = input('> %s %s: ' % (self.prompt, prev)).strip()
                     if self.qtype == 'textarea':
-                        pass
-                    if not reply and self.given_answer:
+                        if self.given_answer:
+                            print(prev)
+
+                        yn = ''
+                        while yn not in ('y', 'n'):
+                            yn = input('> %s: ' % self.prompt).strip()
+                            if yn == 'n':
+                                return
+
+                        if self.given_answer:
+                            if txt.edit(self._textf):
+                                with os.fdopen(txt.new(), 'rb') as f:
+                                    self.given_answer = f.read().strip()
+                        else:
+                            with os.fdopen(txt.new(), 'rb') as f:
+                                self.given_answer = f.read().strip()
+                                self._textf = f.name
+                        return
+
+                    reply = input('> %s %s: ' % (self.prompt, prev)).strip()
+
+                    if not reply:
                         break
 
                     ix = map(int, reply.split()) # ValueError
-                    assert(len(ix) <= self.max)
+                    assert(len(ix) and len(ix) <= self.max)
                     if not all(i > 0 for i in ix):
                         raise IndexError
 
                     self.__submit__ = [self.answers[i-1] for i in ix] # IndexError
                     self.given_answer = ' '.join(map(str, ix))
+                    self.checkbox = Survey.Question.CHECKED
                     break
                 except ValueError:
                     print(col(' !! (space separated) integer(s) required', c.ERR))
@@ -84,12 +111,6 @@ class Survey(Tool):
                     print(col(' !! answer out of range', c.ERR))
                 except AssertionError:
                     print(col(' !! wrong number of answers given', c.ERR))
-
-
-        def str(self):
-            return '%-6s %-60s ... %s' % (col(self.number, c.HEAD, True),
-                                          self.title[:60],
-                                          col('*', c.ERR) if not self.max or self.__submit__ else '')
 
 
     def __init__(self, opener, title, url, surveyid):
@@ -177,7 +198,7 @@ class Survey(Tool):
             surveyid = int(payload['surveyid'])
 
             items = xml.xpath('//table/tr/td/ul')
-            self._parse_page(items, pageno)
+            idx = self._parse_page(items, 0)
 
             while pageno < npages:
                 pageno   += 1
@@ -190,14 +211,15 @@ class Survey(Tool):
                 xml = html.fromstring(response.read())
 
                 items = xml.xpath('//table/tr/td/ul')
-                self._parse_page(items, pageno)
+                idx = self._parse_page(items, idx)
 
         return True
 
 
-    def _parse_page(self, xmls, pageno):
+    def _parse_page(self, xmls, idx):
 
         for i, xml in enumerate(xmls):
+            idx += 1
 
             # fronter HTLM is fucked up
             to_parse = []
@@ -211,27 +233,28 @@ class Survey(Tool):
                 to_parse.append(more_text)
                 more_text = more_text.getnext()
 
-            text = (xml[0].text_content().strip() + '\n' + parse_html(to_parse)).strip()
+            text = xml[0].text_content().strip() + '\n' + parse_html(to_parse)
 
             radio = xml.xpath('.//input[@type="radio"]')
             checkbox = xml.xpath('.//input[@type="checkbox"]')
             textarea = xml.xpath('../ul/textarea[@class="question-textarea"]')
 
             qid = xml.getprevious().get('name')
-            no = col('%i.%i' % (pageno + 1, i + 1), c.HEAD)
 
             if radio:
                 answers = [Survey.Question.Answer(a.label.text, a.get('id')) for a in radio]
-                self.questions.append(Survey.Question(text, no, qid, answers, 'radio'))
+                self.questions.append(Survey.Question(text, idx, qid, answers, 'radio'))
             elif checkbox:
                 answers = [Survey.Question.Answer(a.label.text, a.get('id')) for a in checkbox]
-                self.questions.append(Survey.Question(text, no, qid, answers, 'checkbox'))
+                self.questions.append(Survey.Question(text, idx, qid, answers, 'checkbox'))
             elif textarea:
                 answers = Survey.Question.Answer('', textarea[0].get('id'))
-                self.questions.append(Survey.Question(text, no, qid, answers, 'textarea'))
+                self.questions.append(Survey.Question(text, idx, qid, answers, 'textarea'))
                 break
             else:
-                self.questions.append(Survey.Question(text, no, qid))
+                self.questions.append(Survey.Question(text, idx, qid))
+
+        return idx
 
 
     @staticmethod
