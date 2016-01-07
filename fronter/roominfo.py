@@ -1,4 +1,4 @@
-from ananas import *
+from fronter import *
 from .plugins import parse_html
 
 

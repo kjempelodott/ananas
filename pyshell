@@ -16,9 +16,9 @@ else:
     from urllib.error import URLError
 
 from socket import gaierror
-from ananas import NewToolInterrupt
-from ananas.plugins import Color
-from ananas.fronter import Fronter
+from fronter import NewToolInterrupt
+from fronter.plugins import Color
+from fronter.client import Fronter
 
 c = Color()
 col = c.colored

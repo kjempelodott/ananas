@@ -1,6 +1,6 @@
 from getpass import getuser, getpass
 
-from ananas import *
+from fronter import *
 from .plugins import MultipartPostHandler
 
 

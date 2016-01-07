@@ -1,7 +1,7 @@
 from glob import glob
 from shutil import copyfileobj
 from difflib import SequenceMatcher
-from ananas import *
+from fronter import *
 
 
 class FileTree(Tool):

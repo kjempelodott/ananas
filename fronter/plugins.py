@@ -5,7 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.generator import _make_boundary as choose_boundary
 
-from ananas import *
+from fronter import *
 
 
 class Editor():
