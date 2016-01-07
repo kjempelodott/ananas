@@ -159,7 +159,6 @@ class FileTree(Tool):
                 tid = int(re.findall('[tree|survey]id=([0-9]+)', href)[0])
                 branch = None
                 if 'questiontest' in href: # Surveys are sort of 'folders'
-                    continue # Skip until Surveys are actually working
                     url = self.TARGET + '/questiontest/index.phtml?' \
                           'action=show_test&surveyid=%i&force=1' % tid
                     branch = Survey(self.opener, name, url, tid)
