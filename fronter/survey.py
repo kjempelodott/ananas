@@ -253,9 +253,9 @@ class Survey(Tool):
 
         if payload['viewall'] != '1': # You are admin
 
-            self.commands['del']  = Tool.Command('del', self.delete_idx, '<index>', 'delete replies')
-            self.commands['clean']  = Tool.Command('clean', self.clean, '',
-                                                   'delete all but the best reply for each student')
+            self.commands['del'] = Tool.Command('del', self.delete_idx, '<index>', 'delete replies')
+            self.commands['clean'] = Tool.Command('clean', self.clean, '',
+                                                  'delete all but the best reply for each student')
 
             self.replies = Survey._parse_replies(xml)
 
@@ -385,8 +385,8 @@ class Survey(Tool):
                 data   = tr.xpath('td[1]/input')
                 name   = tr.xpath('td[2]/label')[0]
                 time   = tr.xpath('td[3]/label')[0]
-                score  = tr.xpath('td[4]/label/img')[0]
-                status = tr.xpath('td[5]/label')[0]
+                score  = tr.xpath('td[4]/label/img')
+                status = tr.xpath('td[5]/label')
 
                 last, first = name.text_content().strip().split(', ')
                 payload = {}
@@ -394,8 +394,8 @@ class Survey(Tool):
                 try:
                     time = datetime.strptime(time.text.strip(),'%Y-%m-%d %H:%M:%S') # ValueError
                     payload = [(item.name, item.get('value')) for item in data]
-                    score = int(score.get('src').split('percent=')[-1].split('&')[0])
-                    status = status.text
+                    score = int(score[0].get('src').split('percent=')[-1].split('&')[0])
+                    status = status[0].text
                 except ValueError:
                     time = score = status = None
 
