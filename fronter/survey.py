@@ -54,10 +54,9 @@ class Survey(Tool):
 
 
         def str(self, show_answer=False):
-            if show_answer:
-                return '%-50s ... %s' % (self.title[:50], col(self._given_answer[:10], c.HL))
-            else:
-                return '%-60s ... %s' % (self.title[:60], self.checkbox)
+            return '%-60s ... ' % self.title[:60] + (self.checkbox if not show_answer else
+                    (col(self._given_answer, c.HEAD) if self.qtype != 'textarea' else \
+                     col('\n"""\n%s\n"""' % self._given_answer, c.HEAD)))
 
 
         def ask(self):
@@ -69,21 +68,21 @@ class Survey(Tool):
             if self.qtype != 'textarea':
                 for i, ans in enumerate(self.answers):
                     print(col('[%-3i] ' % (i + 1), c.HL) + ans.text)
-                print('\n' + col(self.hint, c.ERR))
+            print('\n' + col(self.hint, c.ERR))
 
             while 1:
                 prev = ''
                 if self._given_answer:
-                    prev = col('(' + self._given_answer + ') ', c.HL)
+                    if self.qtype == 'textarea':
+                        prev = col('"""\n' + self._given_answer + '\n"""\n', c.HL)
+                    else:
+                        prev = col('(' + self._given_answer + ') ', c.HL)
 
                 try:
                     if self.qtype == 'textarea':
-                        if self._given_answer:
-                            print(prev)
-
                         yn = ''
                         while yn not in ('y', 'n'):
-                            yn = input('> %s ' % self.prompt).strip()
+                            yn = input('%s> %s ' % (prev, self.prompt)).strip()
                             if yn == 'n':
                                 return
 
@@ -325,7 +324,7 @@ class Survey(Tool):
                 to_parse.append(more_text)
                 more_text = more_text.getnext()
 
-            text = xml[0].text_content().strip() + '\n' + parse_html(to_parse)
+            text = xml[0].text_content().strip() + '\n' + parse_html(to_parse).strip()
 
             radio = xml.xpath('.//input[@type="radio"]')
             checkbox = xml.xpath('.//input[@type="checkbox"]')
