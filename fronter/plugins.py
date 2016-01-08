@@ -23,7 +23,7 @@ class Editor():
     def new(self):
         fd, fname = mkstemp(prefix='fronter_')
         self.edit(fname)
-        return fd
+        return fd, fname
 
 
 class Color():
@@ -78,7 +78,7 @@ class Mailserver(smtplib.SMTP_SSL, object):
         msg['Subject'] = subject
 
         text = ''
-        with os.fdopen(txt.new(), 'rb') as f:
+        with os.fdopen(txt.new()[0], 'rb') as f:
             text = f.read()
 
         print('> message:')
