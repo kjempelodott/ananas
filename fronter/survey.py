@@ -133,7 +133,6 @@ class Survey(Tool):
         self.url = url
         self.treeid = surveyid
         super(Survey, self).__init__()
-        self.commands['lr'] = Tool.Command('lr', self.print_replies, '', 'list replies and scores')
 
 
     def str(self):
@@ -253,9 +252,11 @@ class Survey(Tool):
 
         if payload['viewall'] != '1': # You are admin
 
-            self.commands['del'] = Tool.Command('del', self.delete_idx, '<index>', 'delete replies')
+            self.commands['ls']    = Tool.Command('ls', self.print_replies, '',
+                                                  'list replies and scores')
+            self.commands['del']   = Tool.Command('del', self.delete_idx, '<index>', 'delete replies')
             self.commands['clean'] = Tool.Command('clean', self.clean, '',
-                                                  'delete all but the best reply for each student')
+                                                 'delete all but the best reply for each student')
 
             self.replies = Survey._parse_replies(xml)
 
@@ -288,6 +289,7 @@ class Survey(Tool):
             self.commands['goto'] = Tool.Command('goto', self.goto_question,
                                                  '<index>', 'go to specific question')
             self.commands['post'] = Tool.Command('post', self.submit, '', 'review and submit answers')
+            self.commands['lr']   = Tool.Command('lr', self.print_replies, '', 'list replies and scores')
 
             print(col(' ## loading questions ...', c.ERR))
 
