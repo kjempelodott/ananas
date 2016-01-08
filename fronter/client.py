@@ -25,10 +25,10 @@ class Fronter(object):
             raise Exception
 
         try:
-            fsv = conf.getint('fronter', 'studentview')
+            fsv = conf.getint('admin', 'studentview')
             self.__studentview__ = 1 if fsv else 0
         except ValueError:
-            print(col(' !! [fronter] studentview must be integer (0/1)', c.ERR))
+            print(col(' !! [admin] studentview must be integer (0/1)', c.ERR))
             self.__studentview__ = 0
         except:
             self.__studentview__ = 0
