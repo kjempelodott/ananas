@@ -1,3 +1,4 @@
+from itertools import groupby
 from fronter import *
 from .plugins import parse_html
 
@@ -12,12 +13,13 @@ class Survey(Tool):
             self.lastname = lastname
             self.title = '%s %s' % (firstname, lastname)
             self.date = col(time.strftime('%m-%d %H:%M'), c.HL, True) if time else col('NA', c.ERR, True)
-            self.status = col(status, c.HEAD) if status else col('NA', c.ERR)
+            self.status = status
             self.score = score if score else 0
             self.payload = payload
 
         def str(self):
-            return '%-21s %-40s %3i%% %s' % (self.date, self.title, self.score, self.status)
+            return '%-21s %-40s %3i%% %s' % (self.date, self.title, self.score,
+                                    col(self.status, c.HEAD) if self.status else col('NA', c.ERR))
 
 
     class Question():
@@ -150,24 +152,44 @@ class Survey(Tool):
             raise IndexError
 
 
-    def delete(self, idx):
+    def delete_idx(self, idx):
 
         idx = idx.strip().split()
-        payload = [('do_action' , 'delete_replies' ),
-                   ('action'    , 'show_reply_list'),
-                   ('surveyid'  , self.treeid + 1)]
-
+        to_delete = []
         for i in idx:
             try:
                 i = int(i) - 1
                 if i < 0:
                     raise IndexError
-                payload.extend(self.replies[i].payload)
+                to_delete.append(self.replies[i])
             except IndexError:
                 continue
 
+        self.delete(to_delete)
+
+
+    def delete(self, to_delete):
+
+        payload = [('do_action' , 'delete_replies' ),
+                   ('action'    , 'show_reply_list'),
+                   ('surveyid'  , self.treeid + 1)]
+
+        for r in to_delete:
+            payload.extend(r.payload)
+
         response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
         self.read_replies(response)
+
+
+    def clean(self):
+
+        to_delete = []
+        # Reply list is already sorted by key (title)
+        for student, replies in groupby(self.replies, lambda r: r.title):
+            replies = list(replies)
+            if len(replies) > 1:
+                to_delete.extend(sorted(replies, key=lambda r: r.score)[:-1])
+        self.delete(to_delete)
 
 
     def print_questions(self):
@@ -231,7 +253,9 @@ class Survey(Tool):
 
         if payload['viewall'] != '1': # You are admin
 
-            self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete replies')
+            self.commands['del']  = Tool.Command('del', self.delete_idx, '<index>', 'delete replies')
+            self.commands['clean']  = Tool.Command('clean', self.clean, '',
+                                                   'delete all but the best reply for each student')
 
             self.replies = Survey._parse_replies(xml)
 
