@@ -100,7 +100,8 @@ def start_shell():
         client.print_rooms()
 
         idx = int(input('> select a room <index> : ').strip())
-        client.select_room(idx)
+        if not client.select_room(idx):
+            return
 
         @loop
         def select_tool():

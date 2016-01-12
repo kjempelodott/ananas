@@ -33,7 +33,7 @@ class Fronter(object):
         except:
             self.__studentview__ = 0
 
-        self.ROOT = 'https://fronter.com'
+        self.ROOT = 'https://fronter.com/'
         self.TARGET = 'https://fronter.com/%s/' % org
 
         self.cookie_jar = HTTPCookieProcessor()
@@ -85,7 +85,7 @@ class Fronter(object):
 
     def print_notifications(self):
 
-        url = self.TARGET + '/personal/index.phtml'
+        url = self.TARGET + 'personal/index.phtml'
         response = self.opener.open(url)
         xml = html.fromstring(response.read())
         table = xml.xpath('//table[contains(@class, "student-notification-element")]')[-1]
@@ -105,7 +105,7 @@ class Fronter(object):
 
     def get_rooms(self):
     
-        url = self.TARGET + '/adm/projects.phtml'
+        url = self.TARGET + 'adm/projects.phtml'
         response = self.opener.open(url)
         xml = html.fromstring(response.read())
         rooms = xml.xpath('//a[@class="black-link"]')
@@ -122,8 +122,10 @@ class Fronter(object):
         room = self.rooms[idx - 1]
         self.roomid = idx - 1
         print(col(' * ', c.ERR) + room.name)
-        if not room.tools:
-            self.get_tools()
+        if not room.tools and not self.get_tools():
+            return False
+
+        return True
 
 
     def get_tools(self):
@@ -131,10 +133,10 @@ class Fronter(object):
         try:
             room = self.rooms[self.roomid]
             # If we don't do this, we just get the 'toolbar' at the top
-            url = self.TARGET + '/contentframeset.phtml?goto_prjid=%i' % room.id
+            url = self.TARGET + 'contentframeset.phtml?goto_prjid=%i' % room.id
             self.opener.open(url)
             # Read the 'toolbar' on the right hand side
-            url = self.TARGET + '/navbar.phtml?goto_prjid=%i' % room.id
+            url = self.TARGET + 'navbar.phtml?goto_prjid=%i' % room.id
             response = self.opener.open(url)
             xml = html.fromstring(response.read())
             tools = xml.xpath('//a[@class="room-tool"]')
@@ -150,12 +152,15 @@ class Fronter(object):
 
             if not room.tools:
                 print(col(' !! no tools available', c.ERR))
+                return False
 
             elif self.__studentview__:
                 # Reload page with studentview if set in config
                 # Sometimes page won't load if not loaded as admin first
-                url = self.TARGET + '/contentframeset.phtml?goto_prjid=%i&intostudentview=1' % room.id
+                url = self.TARGET + 'contentframeset.phtml?goto_prjid=%i&intostudentview=1' % room.id
                 self.opener.open(url)
+
+            return True
 
         except AttributeError: # Should only happen in interactive session
             print(col(' !! you must select a room first', c.ERR))

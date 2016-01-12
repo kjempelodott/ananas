@@ -133,7 +133,7 @@ class FileTree(Tool):
         
         response = self.opener.open(self.url)
         treeid = int(re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0])
-        url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
+        url = self.TARGET + 'links/structureprops.phtml?treeid=%i' % treeid
         root = FileTree.Branch('', url, treeid)
         self._root = root
         self.__branches__ = {} # Keeps all branches in memory
@@ -160,11 +160,11 @@ class FileTree(Tool):
                 tid = int(re.findall('[tree|survey]id=([0-9]+)', href)[0])
                 branch = None
                 if 'questiontest' in href: # Surveys are sort of 'folders'
-                    url = self.TARGET + '/questiontest/index.phtml?' \
+                    url = self.TARGET + 'questiontest/index.phtml?' \
                           'action=show_test&surveyid=%i&force=1' % tid
                     branch = Survey(self.opener, self.TARGET, name, url, tid)
                 else:
-                    url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % tid
+                    url = self.TARGET + 'links/structureprops.phtml?treeid=%i' % tid
                     branch = FileTree.Branch(name, url, tid, self.cwd)
                 self.cwd.children['branches'].append(branch)
             except (AssertionError, IndexError):
@@ -336,7 +336,7 @@ class FileTree(Tool):
                 print(col(' !! not authorized to delete (%s)' % leaf.title))
                 continue
 
-            self.opener.open(self.TARGET + '/links/' + leaf.menu['multi_delete'].url)
+            self.opener.open(self.TARGET + 'links/' + leaf.menu['multi_delete'].url)
             print(col(' * ', c.ERR) + leaf.title)
 
         self.refresh()
@@ -385,7 +385,7 @@ class FileTree(Tool):
             print(col(' !! commenting not available (%s)' % leaf.title))
             return
         
-        response = self.opener.open(self.TARGET + '/links/' + leaf.menu['new_comment'].url)
+        response = self.opener.open(self.TARGET + 'links/' + leaf.menu['new_comment'].url)
         xml = html.fromstring(response.read())
         evals = xml.xpath('//input[@type="radio"]')
 
