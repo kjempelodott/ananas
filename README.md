@@ -11,6 +11,7 @@ The purpose of this is to minimize the number of puppy deaths. Every time you lo
     * [Download, upload and delete](https://github.com/kjempelodott/ananas#download-upload-and-delete)
     * [Evaluating assignments](https://github.com/kjempelodott/ananas#evaluating-assignments)
     * [Multiple evaluations](https://github.com/kjempelodott/ananas#multiple-evaluations)
+  * [Survey tool](https://github.com/kjempelodott/ananas#survey-tool)
 
 #### Requirements
 
@@ -307,4 +308,9 @@ To automate the evaluation process even further, you can use the `eval#` command
 </THISTAGCANBEWHATEVERYOUWANT>
 ```
 
-The only required attribute is `name`. You will get a warning if both `path` and text are missing in `comment`. If you are too stupid to correctly spell the name or evaluation string, fuzzy string matching will probably save your ass.
+The only required attribute is `name`. You will get a warning if both `path` and text are missing in `comment`. If you are too stupid to correctly spell the name or eval string ('Godkjent'/'Ikke godkjent'/'Approved'/'whatever'), fuzzy string matching will probably save your ass.
+
+
+#### Survey tool
+
+Work in progress ...
