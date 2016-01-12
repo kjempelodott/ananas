@@ -46,6 +46,7 @@ def loop(instr):
                 print('')
                 shellify(ex.tool)
                 print('> exiting ' + ex.tool.str())
+                ex.tool.clean_exit()
 
     return magic
 
@@ -111,6 +112,7 @@ def start_shell():
             print('')
 
             shellify(tool)
+            tool.clean_exit()
 
         select_tool()
 

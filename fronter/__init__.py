@@ -70,6 +70,9 @@ class Tool(object):
         url = form.get('action').lstrip('..')
         return url, payload
 
+    def clean_exit(self):
+        pass
+
 
 from .survey import Survey
 from .members import Members

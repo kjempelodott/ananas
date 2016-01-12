@@ -135,6 +135,7 @@ class FileTree(Tool):
         treeid = int(re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0])
         url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % treeid
         root = FileTree.Branch('', url, treeid)
+        self._root = root
         self.__branches__ = {} # Keeps all branches in memory
         self.goto_branch(root)
     
@@ -161,7 +162,7 @@ class FileTree(Tool):
                 if 'questiontest' in href: # Surveys are sort of 'folders'
                     url = self.TARGET + '/questiontest/index.phtml?' \
                           'action=show_test&surveyid=%i&force=1' % tid
-                    branch = Survey(self.opener, name, url, tid)
+                    branch = Survey(self.opener, self.TARGET, name, url, tid)
                 else:
                     url = self.TARGET + '/links/structureprops.phtml?treeid=%i' % tid
                     branch = FileTree.Branch(name, url, tid, self.cwd)
@@ -609,3 +610,7 @@ class FileTree(Tool):
             return
 
         return self.cwd.children['leafs'][idx - 1]
+
+
+    def clean_exit(self):
+        self.goto_branch(self._root)
