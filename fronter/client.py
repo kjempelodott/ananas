@@ -10,7 +10,8 @@ class Fronter(object):
     _imp = {
          3 : 'FileTree',
         18 : 'Members', 
-        25 : 'RoomInfo'
+        25 : 'RoomInfo',
+        43 : 'FileTree',
     }
 
     def __init__(self):
