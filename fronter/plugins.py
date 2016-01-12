@@ -171,6 +171,11 @@ class MultipartPostHandler(BaseHandler):
     https_request = http_request
 
 
+def wrap(text):
+    from textwrap import fill
+    return '\n'.join(fill(line, replace_whitespace=False) for line in text.splitlines())
+
+
 def parse_html(xml):
 
     content = ''
@@ -212,4 +217,4 @@ def parse_html(xml):
         # Trailing text after <br> etc ...
         content += elem.tail or ''
 
-    return content
+    return wrap(content)
