@@ -318,6 +318,7 @@ class Survey(Tool):
         self._payload = payload
 
         print(col(' ## loading questions ...', c.ERR))
+        self.read_replies()
 
         if payload['viewall'] != '1': # You are admin
 
@@ -328,11 +329,8 @@ class Survey(Tool):
             self.commands['clean'] = Tool.Command('clean', self.clean, '',
                                                   'delete all but the best reply for each student')
             self._read_questions_and_solutions()
-            self.replies = Survey._parse_replies(xml)
 
         else:
-
-            self.read_replies()
 
             try:
                 self.npages = int(re.search('Side: [0-9]+/([0-9]+)', xml.text_content()).groups()[0])
