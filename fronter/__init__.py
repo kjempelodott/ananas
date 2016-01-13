@@ -73,6 +73,13 @@ class Tool(object):
     def clean_exit(self):
         pass
 
+    @staticmethod
+    def _ask(question):
+        yn = ''
+        while yn not in ('y', 'n'):
+            yn = input('> %s (y/n) ' % question).strip()
+        return yn == 'y'
+
 
 from .survey import Survey
 from .members import Members

@@ -317,10 +317,7 @@ class FileTree(Tool):
         leafs = []
         if idx[0] == '*':
             leafs = self.cwd.children['leafs']
-            yn = ''
-            while yn not in ('y', 'n'):
-                yn = input('> delete all in %s? (y/n) ' % self.cwd.path)
-            if yn == 'n':
+            if not Tool._ask('delete all in %s?' % self.cwd.path):
                 return
         else:
             leafs = list(filter(None, [self._get_leaf(i) for i in idx]))
@@ -418,11 +415,7 @@ class FileTree(Tool):
                 return
 
             # Give option to edit
-            yn = ''
-            while yn not in ('y', 'n'):
-                yn = input('> edit evaluation, grade and comment? (y/n) ')
-
-            if yn == 'y':
+            if Tool._ask('edit evaluation, grade and comment?'):
 
                 evals = [(item.getnext().text, item.get('value')) for item in evals]
                 print('')
@@ -561,10 +554,7 @@ class FileTree(Tool):
 
                     batch.append(kwargs)
 
-            yn = ''
-            while yn not in ('y', 'n'):
-                yn = input('> upload evaluations? (y/n) ')
-            if yn == 'n':
+            if not Tool._ask('upload evaluations?'):
                 return
 
             for kwargs in batch:
