@@ -30,16 +30,15 @@ class Survey(Tool):
         CHECKED   = col('[', c.ERR) + col('*', c.HL) + col(']', c.ERR)
         UNCHECKED = col('[', c.ERR) + ' ' + col(']', c.ERR)
 
-        Answer    = namedtuple('Answer', ('text', 'value', 'correct', 'max_score'))
-        Answer.__new__.__defaults__ = (False, 0)
+        Answer    = namedtuple('Answer', ('text', 'value', 'correct', 'min', 'max'))
+        Answer.__new__.__defaults__ = (False, 0, 0)
 
         Hints     = {'radio'    : 'one answer',
                      'checkbox' : 'multiple choice',
                      'textarea' : 'written answer'}
 
         Prompts   = {'radio'    : 'answer <index> :',
-                     'checkbox' : 'answer <index index ... > :',
-                     'textarea' : 'open editor (y/n)'}
+                     'checkbox' : 'answer <index index ... > :'}
 
         def __init__(self, text, idx, answers = [], qtype = None):
 
@@ -76,20 +75,15 @@ class Survey(Tool):
             print('\n' + col(self.hint, c.ERR))
 
             while 1:
-                prev = ''
-                if self._given_answer:
-                    if self.qtype == 'textarea':
-                        prev = col('"""\n' + self._given_answer + '\n"""\n', c.HL)
-                    else:
-                        prev = col('(' + self._given_answer + ') ', c.HL)
-
                 try:
                     if self.qtype == 'textarea':
-                        yn = ''
-                        while yn not in ('y', 'n'):
-                            yn = input('%s> %s ' % (prev, self.prompt)).strip()
-                            if yn == 'n':
-                                return
+
+                        if self._given_answer:
+                            print(col('Your answer:', c.HL))
+                            print('"""\n' + self._given_answer + '\n"""\n')
+
+                        if not Tool._ask('open editor?'):
+                            return
 
                         if self._given_answer:
                             if txt.edit(self._textf):
@@ -107,7 +101,10 @@ class Survey(Tool):
                         self.checkbox = Survey.Question.CHECKED
                         return
 
-                    reply = input('> %s %s' % (self.prompt, prev)).strip()
+                    # radio/checkbox
+                    if self._given_answer:
+                        print(col('Your answer: %s' % self._given_answer, c.HL))
+                    reply = input('> %s' % self.prompt).strip()
 
                     if not reply:
                         break
@@ -154,58 +151,161 @@ class Survey(Tool):
             print(col('[%-3i] ' % (idx + 1), c.HL) + reply.str())
 
 
-    #TODO
-    def evaluate(self, idx):
+    def read_replies(self, resp=None):
+        if not resp:
+            resp = self.opener.open(self._url + '?action=show_reply_list&surveyid=%i'
+                                    % (self.treeid + 1))
+        xml = html.fromstring(resp.read())
+        self.replies = Survey._parse_replies(xml)
+
+
+    def get_reply(self, idx):
 
         idx = int(idx) - 1
         if idx < 0:
             raise IndexError
 
+
+    def get_reply_admin(self, idx):
+
+        idx = int(idx) - 1
+        if idx < 0:
+            raise IndexError
+
+        comments_payload = {}
         payload = dict((k,v) for k,v in self.replies[idx].data.show.items())
 
-        for surveyid, questions in self.pages.items():
-            payload['surveyid'] = surveyid
-            response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
-            xml = html.fromstring(response.read())
-            
-            for qid, q in questions.items():
+        try:
+            for surveyid, questions in self.pages.items():
 
-                _q = xml.xpath('//a[@name="question%i"]' % qid)[0].getnext()
-                    
-                if q.qtype == 'textarea':
+                if not any(q.answers for q in questions.values()):
+                    continue
 
-                    print('\n' + col('Q # ', c.HL) + col(q.text, c.DIR))
-                    print('\n' + col('student\'s answer:', c.HL))
+                payload['surveyid'] = surveyid
+                response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
+                xml = html.fromstring(response.read())
 
-                    answer = _q.getparent().find('span').text_content()
-                    print(col('"""', c.HL))
-                    for line in answer.split('\n'):
-                        print line
-                    print(col('"""', c.HL))
+                for qid, q in questions.items():
 
-                else:
-                    checked = { int(i.value) for i in _q.xpath('.//input[@checked]') }
-                    correct = { aid for aid,a in q.answers.items() if a.correct }
-                    if checked == correct:
+                    if not q.answers:
                         continue
 
-                    print('\n' + col('Q # ', c.HL) + col(q.text, c.DIR))
-                    print('\n' + col('correct answer(s):', c.HL))
-                    for aid in correct:
-                        print(col('* ', c.HL) + q.answers[aid].text)
-                
-                    print('\n' + col('student\'s answer(s):', c.HL))
-                    if not checked:
-                        print(col('<blank>', c.ERR))
-                        continue
-                                                
-                    for aid in correct & checked:
-                        print(col('* ', c.HL) + q.answers[aid].text)
+                    _q = xml.xpath('//a[@name="question%i"]' % qid)[0].getnext()
 
-                    for aid in checked - (correct & checked):
-                        print(col('* ' + q.answers[aid].text, c.ERR))
+                    if q.qtype == 'textarea':
 
-            surveyid += 1
+                        print('\n' + col('Q # ', c.HL) + col(q.text, c.DIR))
+                        print('\n' + col('Student\'s answer:', c.HL))
+
+                        answer = _q.getparent().find('span').text_content()
+                        print('"""\n' + answer + '\n"""')
+
+                        sid = 'q_score_%i' % qid
+                        score = _q.xpath('//input[@name="%s"]' % sid)[0].value
+                        print(col('Score: %s' % score, c.HL))
+
+                        a = q.answers[0]
+
+                        while 1:
+                            try:
+                                score = input('> score (min=%g, max=%g) : ' % (a.min, a.max)).strip()
+                                if not score:
+                                    break
+
+                                score = float(score)
+                                assert(score >= a.min and score <= a.max)
+                                comments_payload['q_score_%i' % qid] = score
+                                break
+
+                            except ValueError:
+                                print(col(' !! number required', c.ERR))
+                            except AssertionError:
+                                print(col(' !! answer out of range', c.ERR))
+
+                    else:
+                        checked = { int(i.value) for i in _q.xpath('.//input[@checked]') }
+                        correct = { aid for aid, a in q.answers.items() if a.correct }
+
+                        print('\n' + col('Q # ', c.HL) + col(q.text, c.DIR))
+                        print('\n' + col('Student\'s answer(s):', c.HL))
+                        if not checked:
+                            print(col('<blank>', c.ERR))
+                            continue # Not much to comment on a blank answer ...
+
+                        # Correct answers by student
+                        for aid in correct & checked:
+                            print(col('* ', c.HL) + q.answers[aid].text)
+
+                        if checked == correct:
+                            continue # No need to print and comment on a correct answer
+
+                        # Wrong answers by students
+                        for aid in checked - (correct & checked):
+                            print(col('* ' + q.answers[aid].text, c.ERR))
+
+                        print('\n' + col('Correct answer(s):', c.HL))
+                        for aid in correct:
+                            print(col('* ', c.HL) + q.answers[aid].text)
+
+                    cid = 'q_comment_%i' % qid
+                    comment = _q.xpath('//textarea[@name="%s"]' % cid)[0].text_content()
+                    edit_comment = True
+
+                    if comment:
+                        print(col('Comment:', c.HL))
+                        print('"""\n' + wrap(comment) + '\n"""')
+                        edit_comment = Tool._ask('delete and make new comment?')
+
+                    if edit_comment:
+                        comment = input('> comment : ').strip()
+                        comments_payload[cid] = comment
+
+                surveyid += 1
+
+        finally: # Do not catch exceptions, but save comments and scores
+            if comments_payload:
+                comments_payload.update(self.replies[idx].data.show)
+                comments_payload['do_action'] = 'save_comment'
+                self.opener.open(self._url, urlencode(comments_payload).encode('ascii'))
+
+        self.evaluate(idx)
+
+
+    def evaluate(self, idx):
+
+        if type(idx) == str:
+            idx = int(idx) - 1
+            if idx < 0:
+                raise IndexError
+
+        payload = dict((k,v) for k,v in self.replies[idx].data.show.items())
+        payload['action'] = 'total_score'
+        response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
+        xml = html.fromstring(response.read())
+
+        eval_grade = xml.xpath('//input[@name="total_score"]')[0]
+        score = eval_grade.getparent().getnext()
+        max_score = score.getnext()
+
+        score = re.findall('\d+\.\d+', score.text)[0]
+        max_score = re.findall('\d+\.\d+', max_score.text)[0]
+        print(col('\nTotal score: ', c.HL) + '%s/%s' % (score, max_score))
+
+        eval_grade = eval_grade.value.strip()
+        if eval_grade:
+            print(col('Evaluation/grade: ', c.HL) + eval_grade)
+
+        comment = xml.xpath('//textarea[@name="total_comment"]')[0].text_content().strip()
+        if comment:
+            print(col('Comment:', c.HL))
+            print('"""\n' + wrap(comment) + '\n"""')
+
+        if (not eval_grade and not comment) or Tool._ask('edit evaluation/grade and comment?'):
+            payload['total_score']   = input('> evaluation/grade : ').strip()
+            payload['total_comment'] = input('> final comment : ').strip()
+            payload['do_action'] = 'save_total_score'
+            self.opener.open(self._url, urlencode(payload).encode('ascii'))
+            self.read_replies()
 
 
     def delete_idx(self, idx):
@@ -281,11 +381,8 @@ class Survey(Tool):
             for idx, q in enumerate(self.questions.values()):
                 print(col('[%-3i] ' % (idx + 1), c.HL) + q.str(show_answer=True))
 
-            yn = ''
-            while yn not in ('y', 'n'):
-                yn = input('> submit? (y/n)? ').strip()
-                if yn == 'n':
-                    return
+            if not Tool._ask('submit?'):
+                return
 
             response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
             xml = html.fromstring(response.read())
@@ -303,14 +400,6 @@ class Survey(Tool):
         self._dirty = False
 
 
-    def read_replies(self, resp = None):
-        if not resp:
-            resp = self.opener.open(self._url + '?action=show_reply_list&surveyid=%i'
-                                    % (self.treeid + 1))
-        xml = html.fromstring(resp.read())
-        self.replies = Survey._parse_replies(xml)
-
-
     def parse(self, xml):
 
         url, payload  = self.prepare_form(xml)
@@ -322,10 +411,12 @@ class Survey(Tool):
 
         if payload['viewall'] != '1': # You are admin
 
-            self.commands['ls']    = Tool.Command('ls', self.print_replies, '',
+            self.commands['ls']    = Tool.Command('ls',    self.print_replies, '',
                                                   'list replies and scores')
-            self.commands['eval']  = Tool.Command('eval', self.evaluate, '<index>', 'evaluate reply')
-            self.commands['del']   = Tool.Command('del', self.delete_idx, '<index>', 'delete replies')
+            self.commands['get']   = Tool.Command('get',   self.get_reply_admin, '<index>',
+                                                  'read reply, comment on errors and evaluate')
+            self.commands['eval']  = Tool.Command('eval',  self.evaluate, '<index>', 'evaluate reply')
+            self.commands['del']   = Tool.Command('del',   self.delete_idx, '<index>', 'delete replies')
             self.commands['clean'] = Tool.Command('clean', self.clean, '',
                                                   'delete all but the best reply for each student')
             self._read_questions_and_solutions()
@@ -344,6 +435,7 @@ class Survey(Tool):
                                                  '<index>', 'go to specific question')
             self.commands['post'] = Tool.Command('post', self.submit, '', 'review and submit answers')
             self.commands['lr']   = Tool.Command('lr', self.print_replies, '', 'list replies and scores')
+#            self.commands['get']  = Tool.Command('get', self.get_reply, '', 'read comments to a reply')
 
             items = xml.xpath('//table/tr/td/ul')
             idx, self.questions = Survey._parse_page(items, 0)
@@ -470,7 +562,7 @@ class Survey(Tool):
 
         try:
             self.pages = OrderedDict()
-            self.opener.addheaders = [('accept', 'applitcations/json')]
+            self.opener.addheaders = [('accept', 'application/json')]
 
             while 1:
                 url = base_url + '/pages/%i' % surveyid
@@ -488,7 +580,8 @@ class Survey(Tool):
                     qtype = q.get('metaType', None)
 
                     if qtype == 'Text':
-                        answers[0] = Survey.Question.Answer('', 0, True, float(q['maxScore']))
+                        min_score, max_score = float(q['minScore']), float(q['maxScore'])
+                        answers[0] = Survey.Question.Answer('', 0, True, min_score, max_score)
                         qtype = 'textarea'
 
                     elif _answers:
