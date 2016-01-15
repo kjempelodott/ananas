@@ -217,18 +217,19 @@ class FileTree(Tool):
         if idx == '..':
             if self.cwd.parent:
                 self.goto_branch(self.cwd.parent)
-            return
+        else:
+            idx = int(idx) - 1
+            if idx < 0:
+                raise IndexError
 
-        idx = int(idx) - 1
-        if idx < 0:
-            raise IndexError
-
-        branches = self.cwd.children['branches']
-        if idx >= len(branches):
-            print(col(' !! not a dir', c.ERR))
-            return
+            branches = self.cwd.children['branches']
+            if idx >= len(branches):
+                print(col(' !! not a dir', c.ERR))
+                return
         
-        self.goto_branch(branches[idx])
+            self.goto_branch(branches[idx])
+
+        print(col(self.cwd.path, c.HEAD))
 
 
     def upload(self, assignment_xml = None, *comments_file):
