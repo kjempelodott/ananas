@@ -303,11 +303,19 @@ class Survey(Tool):
             print('"""\n' + wrap(comment) + '\n"""')
 
         if (not eval_grade and not comment) or Tool._ask('edit evaluation/grade and comment?'):
-            payload['total_score']   = input('> evaluation/grade : ').strip()
-            payload['total_comment'] = input('> final comment : ').strip()
-            payload['do_action'] = 'save_total_score'
-            self.opener.open(self._url, urlencode(payload).encode('ascii'))
-            self.read_replies()
+
+            eval_grade = input('> evaluation/grade : ').strip()
+            if eval_grade:
+                payload['total_score'] = eval_grade
+
+            comment = input('> final comment : ').strip()
+            if comment:
+                payload['total_comment'] = comment
+
+            if eval_grade or comment:
+                payload['do_action'] = 'save_total_score'
+                self.opener.open(self._url, urlencode(payload).encode('ascii'))
+                self.read_replies()
 
 
     def delete_idx(self, idx):
@@ -446,7 +454,7 @@ class Survey(Tool):
             idx, self.questions = self._parse_page(items, 0)
 
             pageno = 1
-            surveyid = self.surveyid
+            surveyid = self.surveyid + 1
 
             while pageno < self.npages:
 
@@ -473,8 +481,6 @@ class Survey(Tool):
             payload['test_section'] = self.surveyid
             payload['do_action']    = 'send_answer'
             payload['action']       = ''
-            # Eh ... apparently a dummy submit is needed
-            self.opener.open(url, urlencode(payload).encode('ascii'))
 
         return True
 
