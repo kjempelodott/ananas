@@ -13,12 +13,14 @@ class Survey(Tool):
         def __init__(self, firstname, lastname, time, status, score, data):
         
             self.firstname = firstname
-            self.lastname = lastname
-            self.title = '%s %s' % (firstname, lastname)
+            self.lastname  = lastname
+            self.title     = '%s %s' % (firstname, lastname)
+
             self.date = col(time.strftime('%m-%d %H:%M'), c.HL, True) if time else col('NA', c.ERR, True)
+
             self.status = status
-            self.score = score if score else 0
-            self.data = data
+            self.score  = score if score else 0
+            self.data   = data
 
         def str(self):
             return '%-21s %-40s %3i%% %s' % (self.date, self.title, self.score,
@@ -40,17 +42,18 @@ class Survey(Tool):
         Prompts   = {'radio'    : 'answer <index> :',
                      'checkbox' : 'answer <index index ... > :'}
 
-        def __init__(self, text, idx, answers = [], qtype = None):
+        def __init__(self, text, idx, images = [], answers = [], qtype = None):
 
-            self.text = text
-            self.idx = idx
+            self.text    = text
+            self.idx     = idx
+            self.images   = images
             self.answers = answers
-            self.qtype = qtype
+            self.qtype   = qtype
 
-            self.title = text.split('\n')[0]
-            self.hint = Survey.Question.Hints.get(qtype, '')
+            self.title  = text.split('\n')[0]
+            self.hint   = Survey.Question.Hints.get(qtype, '')
             self.prompt = Survey.Question.Prompts.get(qtype, '')
-            self._len = 1 if self.qtype == 'radio' else len(self.answers)
+            self._len   = 1 if self.qtype == 'radio' else len(self.answers)
 
             self._given_answer = ''
             self._submit = []
@@ -66,6 +69,12 @@ class Survey(Tool):
         def ask(self):
 
             print('\n' + col('Q #%i ' % self.idx, c.HL) + col(self.text, c.DIR))
+            if self.images:
+                print(col('Attached images:', c.HL))
+                for fname in self.images:
+                    print 'file://' + fname
+                print('')
+
             if not self.answers:
                 return
 
@@ -126,20 +135,19 @@ class Survey(Tool):
                     print(col(' !! wrong number of answers given', c.ERR))
 
 
-    def __init__(self, opener, TARGET, title, url, surveyid):
+    def __init__(self, title, url, surveyid):
 
-        self.opener = opener
-        self.TARGET = TARGET
-        self.title = title
-        self.url = url
-        self.treeid = surveyid
         super(Survey, self).__init__()
 
-        self.npages = 0
-        self.pages = {}
+        self.title  = title
+        self.url    = url
+        self.treeid = surveyid
+
+        self.npages    = 0
+        self.pages     = {}
         self.questions = {}
-        self.replies = []
-        self._dirty = False
+        self.replies   = []
+        self._dirty    = False
 
 
     def str(self):
@@ -400,7 +408,9 @@ class Survey(Tool):
         self._dirty = False
 
 
-    def parse(self, xml):
+    def parse(self):
+
+        xml = html.fromstring(self.opener.open(self.url).read())
 
         url, payload  = self.prepare_form(xml)
         self._url     = url
@@ -438,7 +448,7 @@ class Survey(Tool):
 #            self.commands['get']  = Tool.Command('get', self.get_reply, '', 'read comments to a reply')
 
             items = xml.xpath('//table/tr/td/ul')
-            idx, self.questions = Survey._parse_page(items, 0)
+            idx, self.questions = self._parse_page(items, 0)
 
             pageno = 0
             surveyid = int(payload['surveyid'])
@@ -452,7 +462,7 @@ class Survey(Tool):
                 xml = html.fromstring(response.read())
 
                 items = xml.xpath('//table/tr/td/ul')
-                idx, questions = Survey._parse_page(items, idx)
+                idx, questions = self._parse_page(items, idx)
                 self.questions.update(questions)
 
             for script in xml.xpath('//script[@type="text/javascript"]')[::-1]:
@@ -473,8 +483,7 @@ class Survey(Tool):
         return True
 
 
-    @staticmethod
-    def _parse_page(xmls, idx):
+    def _parse_page(self, xmls, idx):
 
         questions = OrderedDict()
         for i, xml in enumerate(xmls):
@@ -494,22 +503,32 @@ class Survey(Tool):
 
             text = wrap(xml[0].text_content().strip()) + '\n' + parse_html(to_parse).strip()
 
+            _images = xml.xpath('.//img')
+            images = []
+            for i, img in enumerate(_images):
+                response = self.opener.open(self.ROOT + img.get('src').lstrip('/'))
+                ext = response.headers['content-disposition'].split('=')[-1].strip('"').split('.')[-1]
+                fd, fname = mkstemp(prefix='fronter_', suffix='.'+ext)
+                with os.fdopen(fd, 'wb') as f:
+                    copyfileobj(response, f)
+                images.append(fname)
+
             radio = xml.xpath('.//input[@type="radio"]')
             checkbox = xml.xpath('.//input[@type="checkbox"]')
             textarea = xml.xpath('../ul/textarea[@class="question-textarea"]')
 
             if radio:
                 answers = [Survey.Question.Answer(wrap(a.label.text), a.get('value')) for a in radio]
-                questions[radio[0].name] = Survey.Question(text, idx, answers, 'radio')
+                questions[radio[0].name] = Survey.Question(text, idx, images, answers, 'radio')
             elif checkbox:
                 answers = [Survey.Question.Answer(wrap(a.label.text), a.get('value')) for a in checkbox]
-                questions[checkbox[0].name] = Survey.Question(text, idx, answers, 'checkbox')
+                questions[checkbox[0].name] = Survey.Question(text, idx, images, answers, 'checkbox')
             elif textarea:
                 answers = [Survey.Question.Answer('', textarea[0].get('value'))]
-                questions[textarea[0].name] = Survey.Question(text, idx, answers, 'textarea')
+                questions[textarea[0].name] = Survey.Question(text, idx, images, answers, 'textarea')
                 break
             else:
-                questions['info_%i' % idx] = Survey.Question(text, idx)
+                questions['info_%i' % idx] = Survey.Question(text, idx, images)
 
         return idx, questions
 
