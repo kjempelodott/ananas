@@ -1,6 +1,7 @@
 import os, sys, re, stat, base64
 from datetime import datetime
 from tempfile import mkstemp
+from shutil import copyfileobj
 from collections import OrderedDict, namedtuple
 from lxml import html, etree
 
@@ -36,10 +37,10 @@ class Tool(object):
     class Command:
 
         def __init__(self, cmd, function, argstr, desc):
-            self.cmd = cmd
+            self.cmd      = cmd
             self.function = function
-            self.argstr = argstr
-            self.desc = desc
+            self.argstr   = argstr
+            self.desc     = desc
 
         def __call__(self, *arg):
             self.function(*arg)
@@ -51,10 +52,19 @@ class Tool(object):
 
         self.commands = OrderedDict()
         self.commands['exit'] = Tool.Command('exit', sys.exit, '', 'exit')
-        self.commands['h'] = Tool.Command('h', self.print_commands, '', 'print commands')
+        self.commands['h']    = Tool.Command('h', self.print_commands, '', 'print commands')
 
     def __str__(self):
         return self.__class__.__name__
+
+    @property
+    def client(self): pass
+
+    @client.setter
+    def client(self, client):
+        self.TARGET = client.TARGET
+        self.ROOT   = client.ROOT
+        self.opener = client.opener
 
     def print_commands(self):
         print(col('%s commands:' % str(self), c.HEAD))

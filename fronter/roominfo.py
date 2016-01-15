@@ -25,8 +25,7 @@ class RoomInfo(Tool):
     def __init__(self, client, url):
 
         super(RoomInfo, self).__init__()
-        self.opener = client.opener
-        self.TARGET = client.TARGET
+        self.client = client
 
         self.get_messages(url)
         self.messages = self.messages[::-1]

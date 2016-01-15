@@ -1,5 +1,4 @@
 from glob import glob
-from shutil import copyfileobj
 from difflib import SequenceMatcher
 from fronter import *
 
@@ -104,13 +103,10 @@ class FileTree(Tool):
 
     def __init__(self, client, url):
 
-        self.TARGET = client.TARGET
-        self.ROOT = client.ROOT
-        self.url = url
-
         super(FileTree, self).__init__()
-        self.opener = client.opener
 
+        self.client = client
+        self.url = url
         self.init_tree()
 
         # Shell-like filesystem stuff
@@ -162,7 +158,7 @@ class FileTree(Tool):
                 if 'questiontest' in href: # Surveys are sort of 'folders'
                     url = self.TARGET + 'questiontest/index.phtml?' \
                           'action=show_test&surveyid=%i&force=1' % tid
-                    branch = Survey(self.opener, self.TARGET, name, url, tid)
+                    branch = Survey(name, url, tid)
                 else:
                     url = self.TARGET + 'links/structureprops.phtml?treeid=%i' % tid
                     branch = FileTree.Branch(name, url, tid, self.cwd)
@@ -183,17 +179,17 @@ class FileTree(Tool):
                 self.cwd = branch
             return
 
-        response = self.opener.open(branch.url)
-        data = response.read()
-        xml = html.fromstring(data)
-
         if isinstance(branch, Survey):
-            if branch.parse(xml):
-                self.__branches__[treeid] = branch
-                raise NewToolInterrupt(branch)
+            self.__branches__[treeid] = branch
+            raise NewToolInterrupt(branch)
             return
 
         else: # Regular 'folder' with files
+
+            response = self.opener.open(branch.url)
+            data = response.read()
+            xml = html.fromstring(data)
+
             self.cwd = branch
             branch.children['leafs'] = []
 

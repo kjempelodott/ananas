@@ -22,10 +22,12 @@ from fronter.client import Fronter
 
 c = Color()
 col = c.colored
+client = None
 
 
 def loop(instr):
     def magic():
+        global client
         while True:
             try:
                 instr()
@@ -43,6 +45,9 @@ def loop(instr):
             except KeyboardInterrupt:
                 print('')
             except NewToolInterrupt as ex:
+                if not hasattr(ex.tool, 'opener'):
+                    ex.tool.client = client
+                    ex.tool.parse()
                 print('')
                 shellify(ex.tool)
                 print('> exiting ' + ex.tool.str())
@@ -74,8 +79,6 @@ def shellify(tool):
 
     do()
 
-
-client = None
 
 def start_shell():
 

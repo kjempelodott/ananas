@@ -22,7 +22,8 @@ class Members(Tool):
 
         super(Members, self).__init__()
         self.mailserver = Mailserver(client.__user__, client.__secret__)
-        self.opener = client.opener
+        self.client = client
+
         self.members = []
         self.get_members(url)
 
