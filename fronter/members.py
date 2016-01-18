@@ -36,11 +36,13 @@ class Members(Tool):
 
         response = self.opener.open(url)
         xml = html.fromstring(response.read())
-        name = xml.xpath('//tr/td[2]/label/a[@class="black-link"]')
-        email = xml.xpath('//tr/td[4]/label/a[@class="black-link"]')
+        name = xml.xpath('//tr/td[2]/label/a')
+        email = xml.xpath('//tr/td[4]/label')
         label = xml.xpath('//tr/td[last()]/label')
         for n, e, a in zip(name, email, label):
-            self.members.append(Members.Member(n.text, e.text, a.text))
+            e = e.xpath('./a')
+            e = '' if not e else e[0].text
+            self.members.append(Members.Member(n.text, e, a.text))
 
 
     def print_members(self):
