@@ -236,14 +236,14 @@ class Survey(Tool):
                     print('\n' + col('Student\'s answer(s):', c.HL))
                     if not checked:
                         print(col('<blank>', c.ERR))
-                        continue # Not much to comment on a blank answer ...
+                        continue
 
                     # Correct answers by student
                     for aid in correct & checked:
                         print(col('* ', c.HL) + q.answers[aid].text)
 
                     if checked == correct:
-                        continue # No need to print and comment on a correct answer
+                        continue
 
                     # Wrong answers by students
                     for aid in checked - (correct & checked):
@@ -253,18 +253,17 @@ class Survey(Tool):
                     for aid in correct:
                         print(col('* ', c.HL) + q.answers[aid].text)
 
-                cid = 'q_comment_%i' % qid
-                comment = _q.xpath('//textarea[@name="%s"]' % cid)[0].text_content()
-                edit_comment = True
+            comment = _q.xpath('//textarea[@name="teachercomment"]')[0].text_content()
+            edit_comment = True
 
-                if comment:
-                    print(col('Comment:', c.HL))
-                    print('"""\n' + wrap(comment) + '\n"""')
-                    edit_comment = Tool._ask('delete and make new comment?')
+            if comment:
+                print(col('Comment:', c.HL))
+                print('"""\n' + wrap(comment) + '\n"""')
+                edit_comment = Tool._ask('delete and make new comment?')
 
-                if edit_comment:
-                    comment = input('> comment : ').strip()
-                    comments[cid] = comment
+            if edit_comment:
+                comment = input('> comment : ').strip()
+                comments['teachercomment'] = comment
 
             if comments:
                 comments.update(payload)
