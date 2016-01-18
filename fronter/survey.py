@@ -175,11 +175,11 @@ class Survey(Tool):
         payload = dict((k,v) for k,v in reply.data.show.items())
         payload['pageno'] = 1
 
-        response = self.opener.open(self._url, urlencode(payload, 'ascii'))
+        response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
         xml = html.fromstring(response.read())
         text = xml.xpath('//span[@class="label"]')
 
-        # ¤%&!#/%¤"("¤!
+        # %&!#/%!
         overall_hl = text[5].text.strip()
         overall_comment = text[5].getparent().text_content().strip()[len(overall_hl):]
         eval_grade = text[6].getparent().text_content().strip()
@@ -188,26 +188,25 @@ class Survey(Tool):
         while 1:
             try:
                 assert(len(text) > 2)
-                print('\n' + col(text[0].text.strip(), c.HEAD))
+                print('\n' + col(text[0].text.strip(), c.DIR))
                 print(text[1].text.strip())
                 comment_hl = text[2].text.strip()
                 print(col(comment_hl, c.HL))
                 print(text[2].getparent().text_content().strip()[len(comment_hl):])
 
                 payload['pageno'] += 1
-                response = self.opener.open(self._url, urlencode(payload, 'ascii'))
+                response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
                 xml = html.fromstring(response.read())
                 text = xml.xpath('//span[@class="label"]')
 
-            except Exception as e:
-                print str(e)
+            except AssertionError:
                 break
 
-        print(col('Final score and comments', c.HEAD))
+        print(col('\nFinal score and comments', c.HEAD))
         print(score)
         print(col(overall_hl, c.HL))
         print(overall_comment)
-        print(col(eval_grade, c.HEAD))
+        print(col(eval_grade, c.HL))
 
 
     def get_reply_admin(self, idx):

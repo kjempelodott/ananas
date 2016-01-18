@@ -120,8 +120,11 @@ class MultipartPostHandler(BaseHandler):
             files = []
             header = []
             try:
-                if hasattr(data, 'items'):
+                try:
                     data = data.items()
+                except:
+                    pass
+
                 for key, value in data:
                     if hasattr(value, 'fileno'):
                         files.append((key, value))
