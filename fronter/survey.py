@@ -168,9 +168,46 @@ class Survey(Tool):
 
     def get_reply(self, idx):
 
-        idx = int(idx) - 1
-        if idx < 0:
-            raise IndexError
+        reply = self._get_reply(idx)
+        if not reply:
+            return
+
+        payload = dict((k,v) for k,v in reply.data.show.items())
+        payload['pageno'] = 1
+
+        response = self.opener.open(self._url, urlencode(payload, 'ascii'))
+        xml = html.fromstring(response.read())
+        text = xml.xpath('//span[@class="label"]')
+
+        # ¤%&!#/%¤"("¤!
+        overall_hl = text[5].text.strip()
+        overall_comment = text[5].getparent().text_content().strip()[len(overall_hl):]
+        eval_grade = text[6].getparent().text_content().strip()
+        score = text[8].text.strip()
+
+        while 1:
+            try:
+                assert(len(text) > 2)
+                print('\n' + col(text[0].text.strip(), c.HEAD))
+                print(text[1].text.strip())
+                comment_hl = text[2].text.strip()
+                print(col(comment_hl, c.HL))
+                print(text[2].getparent().text_content().strip()[len(comment_hl):])
+
+                payload['pageno'] += 1
+                response = self.opener.open(self._url, urlencode(payload, 'ascii'))
+                xml = html.fromstring(response.read())
+                text = xml.xpath('//span[@class="label"]')
+
+            except Exception as e:
+                print str(e)
+                break
+
+        print(col('Final score and comments', c.HEAD))
+        print(score)
+        print(col(overall_hl, c.HL))
+        print(overall_comment)
+        print(col(eval_grade, c.HEAD))
 
 
     def get_reply_admin(self, idx):
@@ -435,6 +472,9 @@ class Survey(Tool):
 
         else:
 
+            self.commands['lr']   = Tool.Command('lr', self.print_replies, '', 'list replies and scores')
+            self.commands['get']  = Tool.Command('get', self.get_reply, '', 'read comments to a reply')
+
             try:
                 self.npages = int(re.search('Side: [0-9]+/([0-9]+)', xml.text_content()).groups()[0])
             except:
@@ -446,8 +486,6 @@ class Survey(Tool):
             self.commands['goto'] = Tool.Command('goto', self.goto_question,
                                                  '<index>', 'go to specific question')
             self.commands['post'] = Tool.Command('post', self.submit, '', 'review and submit answers')
-            self.commands['lr']   = Tool.Command('lr', self.print_replies, '', 'list replies and scores')
-#            self.commands['get']  = Tool.Command('get', self.get_reply, '', 'read comments to a reply')
 
             items = xml.xpath('//table/tr/td/ul')
             idx, self.questions = self._parse_page(items, 0)
