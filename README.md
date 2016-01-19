@@ -12,6 +12,9 @@ The purpose of this is to minimize the number of puppy deaths. Every time you lo
     * [Evaluating assignments](https://github.com/kjempelodott/ananas#evaluating-assignments)
     * [Multiple evaluations](https://github.com/kjempelodott/ananas#multiple-evaluations)
   * [Survey tool](https://github.com/kjempelodott/ananas#survey-tool)
+    * [Taking a survey](https://github.com/kjempelodott/ananas#taking-a-survey)
+    * [Read evaluation and comments](https://github.com/kjempelodott/ananas#read-evaluation-and-comments)
+    * [Evaluating replies](https://github.com/kjempelodott/ananas#evaluating-replies)
 
 #### Requirements
 
@@ -308,9 +311,146 @@ To automate the evaluation process even further, you can use the `eval#` command
 </THISTAGCANBEWHATEVERYOUWANT>
 ```
 
-The only required attribute is `name`. You will get a warning if both `path` and text are missing in `comment`. If you are too stupid to correctly spell the name or eval string ('Godkjent'/'Ikke godkjent'/'Approved'/'whatever'), fuzzy string matching will probably save your ass.
+The only required attribute is `name`. You will get a warning if both `path` and text are missing in `comment`. If you are too stupid to correctly spell the name or eval string ("Godkjent" or "Ikke godkjent" or whatever ... ), fuzzy string matching will probably save your ass.
 
 
 #### Survey tool
 
-Work in progress ...
+Surveys are sort of like files and can be accessed from a directory within a FileTree:
+
+```
+> ls
+/1.1 Tid og frekvens/
+[1  ] skript og filer til bruk på lab og prelab
+[2  ] Prelab 1. Tid og frekvens
+[3  ] tid_frekvens.pdf                                             eval, del, get
+```
+
+In the example above, the second entry is a survey. Surveys are listed after directories, but before regular files. Use the `cd` command to enter a survey:
+
+```
+> cd 2
+Prelab 1. Tid og frekvens
+ ## loading questions ...
+
+```
+
+This tool is different for students and admins. Admins can go directly to [Evaluating replies](https://github.com/kjempelodott/ananas#evaluating-replies).
+
+##### Taking a survey
+
+When entering a survey, students are presented with the following menu:
+
+```
+Survey commands:
+return <Ctrl-D>
+exit                     exit
+h                        print commands
+lr                       list replies and scores
+get                      read comments to a reply
+ls                       list questions
+go                       take survey
+goto     <index>         go to specific question
+post                     review and submit answers
+> 
+```
+
+The command `go` takes you through the survey, question by question. At any point, you can press `Ctrl-C` to interrupt. After each question, you will be asked to give an answer. The hint above the prompt tells you whether it is one correct answer or multiple choice. If you can't figure out the answer, just press `ENTER` to go to the next question. Some questions are exercises (e.g. write a script), and you will be asked to open an editor with a temporary file. Example:
+
+```
+> go
+
+Q #1 Informasjon
+some info blabla
+
+Q #2 Spørsmål 1.1. Hvilken påstand er riktig?
+[1  ] foo
+[2  ] bar
+[3  ] baz
+
+one answer
+> answer <index> : 1
+
+Q #3 Spørsmål 1.2. Hvilke(t) av forholdene under har innvirkning på
+presisjonen i målingene?
+[1  ] foo
+[2  ] bar
+[3  ] baz
+
+multiple choice
+> answer <index index ... > : 1 3
+
+Q #4 Skriv et MATLAB-skript som ...
+
+written answer
+> open editor? (y/n) n
+
+```
+
+To list all questions, use the command `ls`. The box at the right of each question indicates whether you have given an answer to that question or not. Note that some "questions" are really just pieces of information or whatever, and they will appear as checked questions. Assuming we didn't answer the last exercise (write a script), it should look like this:
+
+```
+> ls
+[1  ] Informasjon                                                  ... [*]
+[2  ] Spørsmål 1.1. Hvilken påstand er riktig?                     ... [*]
+[3  ] Spørsmål 1.2. Hvilke(t) av forholdene under har innvirkning  ... [*]
+[4  ] Skriv et MATLAB-skript som ...                               ... [ ]
+>
+```
+
+Question number 4 is missing an answer. To go directly to that question, type `goto 4`. Once you're happy with you answers, submit them with `post`. The list of questions with your given answers will be printed:
+
+```
+> post
+[1  ] Informasjon                                                  ... 
+[2  ] Spørsmål 1.1. Hvilken påstand er riktig?                     ... 1
+[3  ] Spørsmål 1.2. Hvilke(t) av forholdene under har innvirkning  ... 1 3
+[4  ] Skriv et MATLAB-skript som ...                               ... 
+"""
+print 'halla'
+"""
+> submit? (y/n) y
+Score: 50%
+>
+```
+
+Note that text exercises need to be evaluated by a teacher, so the printed score is not necessarily the final score.
+
+##### Read evaluation and comments
+
+The `lr` command is like `ls`, but list all your replies (attempts) instead of questions:
+
+```
+> lr
+[1  ] 01-19 14:24  Student                                  100% Godkjent
+[2  ] 01-18 13:45  Student                                   60% Ikke godkjent
+```
+
+If you made any errors, the teacher should leave helpful comments for you. Use the `get` command to print them:
+
+```
+> get 2
+
+Poeng: Begreper
+Prosentvis poengsum: 100%
+Lærerens kommentar til besvarelsen:
+Bra!
+
+Poeng: MATLAB-skript
+Prosentvis poengsum: 50%
+Lærerens kommentar til besvarelsen:
+Skiptet fungerer, men det mangler ... bla bla bla
+
+Final score and comments
+Prosentvis poengsum: 60%
+Lærerens kommentar til besvarelsen:
+Du må jobbe litt mer med skriptet
+Totalt for prøven: Ikke godkjent
+>
+```
+
+Note that comments are made per page, not per question, which might be a bit confusing ...
+
+##### Evaluating replies
+
+...
