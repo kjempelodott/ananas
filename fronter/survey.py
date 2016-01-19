@@ -179,11 +179,15 @@ class Survey(Tool):
         xml = html.fromstring(response.read())
         text = xml.xpath('//span[@class="label"]')
 
-        # %&!#/%!
-        overall_hl = text[5].text.strip()
-        overall_comment = text[5].getparent().text_content().strip()[len(overall_hl):]
-        eval_grade = text[6].getparent().text_content().strip()
-        score = text[8].text.strip()
+        try:
+            # %&!#/%!
+            overall_hl = text[5].text.strip()
+            overall_comment = text[5].getparent().text_content().strip()[len(overall_hl):]
+            eval_grade = text[6].getparent().text_content().strip()
+            score = text[8].text.strip()
+        except IndexError:
+            print(' !! this reply has been deleted')
+            return
 
         while 1:
             try:
@@ -472,12 +476,13 @@ class Survey(Tool):
         else:
 
             self.commands['lr']   = Tool.Command('lr', self.print_replies, '', 'list replies and scores')
-            self.commands['get']  = Tool.Command('get', self.get_reply, '', 'read comments to a reply')
+            self.commands['get']  = Tool.Command('get', self.get_reply, '<index>',
+                                                 'read comments to a reply')
 
             try:
                 self.npages = int(re.search('Side: [0-9]+/([0-9]+)', xml.text_content()).groups()[0])
             except:
-                print(col(' !! inactive survey', c.ERR))
+                print(col(' ## inactive survey', c.ERR))
                 return
 
             self.commands['ls']   = Tool.Command('ls', self.print_questions, '', 'list questions')
@@ -495,6 +500,7 @@ class Survey(Tool):
             while pageno < self.npages:
 
                 payload['surveyid'] = surveyid
+                payload['pageno']   = pageno
                 response = self.opener.open(url, urlencode(payload).encode('ascii'))
                 xml = html.fromstring(response.read())
 
