@@ -355,7 +355,7 @@ post                     review and submit answers
 > 
 ```
 
-The command `go` takes you through the survey, question by question. At any point, you can press `Ctrl-C` to interrupt. After each question, you will be asked to give an answer. The hint above the prompt tells you whether it is one correct answer or multiple choice. If you can't figure out the answer, just press `ENTER` to go to the next question. Some questions are exercises (e.g. write a script), and you will be asked to open an editor with a temporary file. Example:
+The command `go` takes you through the survey, question by question. At any point, you can press `Ctrl-C` to interrupt. After each question, you will be asked to give an answer. The hint above the prompt tells you whether there is just one correct answer or multiple. If you can't figure out the answer, just press `ENTER` to go to the next question. Some questions are exercises (e.g. write a script), and you will be asked to open an editor with a temporary file. Example:
 
 ```
 > go
@@ -398,7 +398,7 @@ To list all questions, use the command `ls`. The box at the right of each questi
 >
 ```
 
-Question number 4 is missing an answer. To go directly to that question, type `goto 4`. Once you're happy with you answers, submit them with `post`. The list of questions with your given answers will be printed:
+Question number 4 is missing an answer. To go directly to that question, type `goto 4`. Once you're happy with you answers, submit them with `post`. The list of question will be printed again, but instead of boxes with stars, the rightmost column displays your given answers, for a final review:
 
 ```
 > post
@@ -414,11 +414,11 @@ Score: 50%
 >
 ```
 
-Note that text exercises need to be evaluated by a teacher, so the printed score is not necessarily the final score.
+Note that text/script exercises have to be evaluated by a teacher; don't despair if the reported score is low.
 
 ##### Read evaluation and comments
 
-The `lr` command is like `ls`, but list all your replies (attempts) instead of questions:
+The `lr` command is like `ls`, but it lists your replies (attempts) instead of questions:
 
 ```
 > lr
