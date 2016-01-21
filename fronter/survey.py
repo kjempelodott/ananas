@@ -1,4 +1,4 @@
-import json
+import json, pickle
 from itertools import groupby
 from fronter import *
 from .plugins import parse_html, wrap
@@ -27,13 +27,14 @@ class Survey(Tool):
                                     col(self.status, c.HEAD) if self.status else col('NA', c.ERR))
 
 
+    Answer    = namedtuple('Answer', ('text', 'value', 'correct', 'min', 'max'))
+    Answer.__new__.__defaults__ = (False, 0, 0)
+
+
     class Question():
 
         CHECKED   = col('[', c.ERR) + col('*', c.HL) + col(']', c.ERR)
         UNCHECKED = col('[', c.ERR) + ' ' + col(']', c.ERR)
-
-        Answer    = namedtuple('Answer', ('text', 'value', 'correct', 'min', 'max'))
-        Answer.__new__.__defaults__ = (False, 0, 0)
 
         Hints     = {'radio'    : 'one answer',
                      'checkbox' : 'multiple choice',
@@ -105,7 +106,7 @@ class Survey(Tool):
                                 self._textf = fname
 
                         text = self.answers.pop().text
-                        self.answers.append(Survey.Question.Answer(text, self._given_answer))
+                        self.answers.append(Survey.Answer(text, self._given_answer))
                         self._submit = self.answers
                         self.checkbox = Survey.Question.CHECKED
                         return
@@ -135,6 +136,9 @@ class Survey(Tool):
                     print(col(' !! wrong number of answers given', c.ERR))
 
 
+    globals()[Question.__name__] = Question
+    globals()[Answer.__name__]   = Answer
+
     def __init__(self, title, url, treeid):
 
         super(Survey, self).__init__()
@@ -143,10 +147,7 @@ class Survey(Tool):
         self.url    = url
         self.treeid = treeid
 
-        self.npages    = 0
-        self.pages     = {}
-        self.questions = {}
-        self.replies   = []
+        self._save     = os.path.join('fronter', 'save_survey_%i' % treeid)
         self._dirty    = False
 
 
@@ -226,24 +227,27 @@ class Survey(Tool):
             if not any(q.answers for q in questions.values()):
                 continue
 
-            comments = {}
+            teacher = {}
             payload['surveyid'] = surveyid
             response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
-            xml = html.fromstring(response.read())
+            # Omg, fronter html ...
+            data = response.read().decode('utf-8').replace('<br>', '\n')
+            xml = html.fromstring(data)
 
-            for qid, q in questions.items():
+            for i, item in enumerate(questions.items()):
 
+                qid, q = item
                 if not q.answers:
                     continue
 
                 _q = xml.xpath('//a[@name="question%i"]' % qid)[0].getnext()
 
+                print('\n' + col('Q #%i ' % (i+1), c.HL) + col(q.text, c.DIR))
+                print('\n' + col('Student\'s answer(s):', c.HL))
+
                 if q.qtype == 'textarea':
 
-                    print('\n' + col('Q # ', c.HL) + col(q.text, c.DIR))
-                    print('\n' + col('Student\'s answer:', c.HL))
-
-                    answer = _q.getparent().find('span').text_content()
+                    answer = _q.getparent().find('span').text_content().strip()
                     print('"""\n' + answer + '\n"""')
 
                     sid = 'q_score_%i' % qid
@@ -260,7 +264,7 @@ class Survey(Tool):
 
                             score = float(score)
                             assert(score >= a.min and score <= a.max)
-                            comments['q_score_%i' % qid] = score
+                            teacher['q_score_%i' % qid] = score
                             break
 
                         except ValueError:
@@ -269,11 +273,9 @@ class Survey(Tool):
                             print(col(' !! answer out of range', c.ERR))
 
                 else:
-                    checked = { int(i.value) for i in _q.xpath('.//input[@checked]') }
+                    checked = { int(c.value) for c in _q.xpath('.//input[@checked]') }
                     correct = { aid for aid, a in q.answers.items() if a.correct }
 
-                    print('\n' + col('Q # ', c.HL) + col(q.text, c.DIR))
-                    print('\n' + col('Student\'s answer(s):', c.HL))
                     if not checked:
                         print(col('<blank>', c.ERR))
                         continue
@@ -303,12 +305,15 @@ class Survey(Tool):
 
             if edit_comment:
                 comment = input('> comment : ').strip()
-                comments['teachercomment'] = comment
+                if comment:
+                    teacher['teachercomment'] = comment
 
-            if comments:
-                comments.update(payload)
-                comments['do_action'] = 'save_comment'
-                self.opener.open(self._url, urlencode(comments).encode('ascii'))
+            if teacher:
+                teacher.update(payload)
+                teacher['do_action'] = 'save_comment'
+                self.opener.open(self._url, urlencode(teacher).encode('ascii'))
+
+            print(col('\n  ******', c.HEAD))
 
         self.evaluate(idx)
 
@@ -416,37 +421,36 @@ class Survey(Tool):
             q.ask()
 
 
-    def submit(self, postpone=False):
+    def submit(self):
+
+        for idx, q in enumerate(self.questions.values()):
+            print(col('[%-3i] ' % (idx + 1), c.HL) + q.str(show_answer=True))
+
+        if not Tool._ask('submit?'):
+            return
 
         payload = [(qid, a.value) for qid, q in self.questions.items() for a in q._submit]
-
-        if postpone: # TODO: check that this actually works (not supported for admin in student mode)
-            self._payload['do_action'] = 'postpone_answer'
-            payload += [(k,v) for k,v in self._payload.items()]
-            self.opener.open(self._url, urlencode(payload).encode('ascii'))
-        else:
-            self._payload['do_action'] = 'send_answer'
-            payload += [(k,v) for k,v in self._payload.items()]
-            for idx, q in enumerate(self.questions.values()):
-                print(col('[%-3i] ' % (idx + 1), c.HL) + q.str(show_answer=True))
-
-            if not Tool._ask('submit?'):
-                return
-
-            response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
-            xml = html.fromstring(response.read())
-
-            for span in xml.xpath('//span[@class="label"]')[::-1]:
-                percent = re.search('\d+%', span.text)
-                if percent:
-                    print(col('Score: ' + percent.group(), c.HEAD))
-                    break
-            else:
-                print(col(' !! something went wrong', c.ERR))
-
-            self.read_replies()
-
+        payload += [(k,v) for k,v in self._payload.items()]
+        response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
+        xml = html.fromstring(response.read())
         self._dirty = False
+
+        for span in xml.xpath('//span[@class="label"]')[::-1]:
+            percent = re.search('\d+%', span.text)
+            if percent:
+                print(col('Score: ' + percent.group(), c.HEAD))
+                break
+        else:
+            print(col(' !! something went wrong', c.ERR))
+            self._dirty = True
+
+        if not self._dirty:
+            try:
+                os.unlink(self._save)
+            except:
+                pass
+
+        self.read_replies()
 
 
     def parse(self):
@@ -491,25 +495,42 @@ class Survey(Tool):
                                                  '<index>', 'go to specific question')
             self.commands['post'] = Tool.Command('post', self.submit, '', 'review and submit answers')
 
-            items = xml.xpath('//table/tr/td/ul')
-            idx, self.questions = self._parse_page(items, 0)
+            loaded = False
+            try:
+                assert(os.path.exists(self._save))
+                with open(self._save, 'rb') as f:
+                    self.questions = pickle.load(f)
+                loaded = True
+            except (IOError, OSError, KeyError):
+                print(col(' !! failed to load saved survey %s' % fname, c.ERR))
+            except AssertionError:
+                pass
 
-            pageno = 1
-            surveyid = self.surveyid + 1
-
-            while pageno < self.npages:
-
-                payload['surveyid'] = surveyid
-                payload['pageno']   = pageno
+            if loaded: # Load last page to get submithash
+                payload['surveyid'] += self.npages
+                payload['pageno']    = self.npages
                 response = self.opener.open(url, urlencode(payload).encode('ascii'))
                 xml = html.fromstring(response.read())
-
+            else:
                 items = xml.xpath('//table/tr/td/ul')
-                idx, questions = self._parse_page(items, idx)
-                self.questions.update(questions)
+                idx, self.questions = self._parse_page(items, 0)
 
-                pageno   += 1
-                surveyid += 1
+                pageno = 1
+                surveyid = self.surveyid + 1
+
+                while pageno < self.npages:
+
+                    payload['surveyid'] = surveyid
+                    payload['pageno']   = pageno
+                    response = self.opener.open(url, urlencode(payload).encode('ascii'))
+                    xml = html.fromstring(response.read())
+
+                    items = xml.xpath('//table/tr/td/ul')
+                    idx, questions = self._parse_page(items, idx)
+                    self.questions.update(questions)
+
+                    pageno   += 1
+                    surveyid += 1
 
             for script in xml.xpath('//script[@type="text/javascript"]')[::-1]:
                 submithash = re.search('submithash\.value\s?=\s?"(\w+)";', script.text_content())
@@ -523,6 +544,8 @@ class Survey(Tool):
             payload['test_section'] = self.surveyid
             payload['do_action']    = 'send_answer'
             payload['action']       = ''
+            # Wtf, need to fix this
+            self.opener.open(url, urlencode(payload).encode('ascii'))
 
         return True
 
@@ -562,13 +585,13 @@ class Survey(Tool):
             textarea = xml.xpath('../ul/textarea[@class="question-textarea"]')
 
             if radio:
-                answers = [Survey.Question.Answer(wrap(a.label.text), a.get('value')) for a in radio]
+                answers = [Survey.Answer(wrap(a.label.text), a.get('value')) for a in radio]
                 questions[radio[0].name] = Survey.Question(text, idx, images, answers, 'radio')
             elif checkbox:
-                answers = [Survey.Question.Answer(wrap(a.label.text), a.get('value')) for a in checkbox]
+                answers = [Survey.Answer(wrap(a.label.text), a.get('value')) for a in checkbox]
                 questions[checkbox[0].name] = Survey.Question(text, idx, images, answers, 'checkbox')
             elif textarea:
-                answers = [Survey.Question.Answer('', textarea[0].get('value'))]
+                answers = [Survey.Answer('', textarea[0].get('value'))]
                 questions[textarea[0].name] = Survey.Question(text, idx, images, answers, 'textarea')
                 break
             else:
@@ -630,13 +653,14 @@ class Survey(Tool):
             while 1:
                 url = base_url + '/pages/%i' % surveyid
                 response = self.opener.open(url)
-                _questions = json.loads(response.read().replace('\n',''), 'utf-8')['questionIdList']
+                page = json.loads(response.read().decode('utf-8').replace('\n',''))
+                _questions = page['questionIdList']
                 questions = OrderedDict()
 
                 for q in _questions:
                     url = base_url + '/questions/%i' % q
                     response = self.opener.open(url)
-                    q = json.loads(response.read().replace('\n',''), 'utf-8')
+                    q = json.loads(response.read().decode('utf-8').replace('\n',''))
 
                     _answers = q.get('answers', [])
                     answers = OrderedDict()
@@ -644,7 +668,7 @@ class Survey(Tool):
 
                     if qtype == 'Text':
                         min_score, max_score = float(q['minScore']), float(q['maxScore'])
-                        answers[0] = Survey.Question.Answer('', 0, True, min_score, max_score)
+                        answers[0] = Survey.Answer('', 0, True, min_score, max_score)
                         qtype = 'textarea'
 
                     elif _answers:
@@ -652,20 +676,23 @@ class Survey(Tool):
                             atext   = a['answerText']
                             aid     = a['answerId']
                             correct = a['answerCorrect']
-                            answers[aid] = Survey.Question.Answer(wrap(atext), aid, correct)
+                            answers[aid] = Survey.Answer(wrap(atext), aid, correct)
 
                     else:
                         continue
 
-                    qtext = q['questionText']
+                    qtext = wrap(q['questionText'])
                     qid   = q['id']
-                    questions[qid] = Survey.Question(wrap(qtext), 0, [], answers, qtype)
+                    body  = q.get('body', '')
+                    if body:
+                        qtext += '\n' + parse_html(html.fromstring(q['body']))
+                    questions[qid] = Survey.Question(qtext, 0, [], answers, qtype)
 
                 if questions:
                     self.pages[surveyid] = questions
                 surveyid += 1
 
-        except: # HTTPError, end of pages
+        except HTTPError: # end of pages
             self.opener.addheaders = []
 
 
@@ -685,4 +712,8 @@ class Survey(Tool):
 
     def clean_exit(self):
         if self._dirty:
-            self.submit(postpone=True)
+            fd, tmp = mkstemp()
+            with os.fdopen(fd, 'wb') as f:
+                f.write(pickle.dumps(self.questions))
+            copy(tmp, self._save)
+            self._dirty = False

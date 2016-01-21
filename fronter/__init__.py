@@ -1,7 +1,7 @@
 import os, sys, re, stat, base64
 from datetime import datetime
 from tempfile import mkstemp
-from shutil import copyfileobj
+from shutil import copyfileobj, copy
 from collections import OrderedDict, namedtuple
 from lxml import html, etree
 
@@ -9,7 +9,7 @@ if sys.version_info[0] == 2:
     from ConfigParser import ConfigParser
     from urllib import urlencode, unquote_plus
     from urllib2 import BaseHandler, HTTPHandler, HTTPRedirectHandler, \
-        build_opener, HTTPCookieProcessor
+        build_opener, HTTPCookieProcessor, HTTPError
     from HTMLParser import HTMLParser
     input = raw_input
 else:
@@ -17,6 +17,7 @@ else:
     from urllib.request import BaseHandler, HTTPHandler, HTTPRedirectHandler, \
         HTTPCookieProcessor, build_opener
     from urllib.parse import urlencode, unquote_plus
+    from urllib.error import HTTPError
     from html.parser import HTMLParser
 
 from .plugins import Color, Editor
