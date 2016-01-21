@@ -123,14 +123,16 @@ class Fronter(object):
         room = self.rooms[idx - 1]
         self.roomid = idx - 1
         print(col(' * ', c.ERR) + room.name)
-        if not room.tools and not self.get_tools():
+
+        tools = self.load_room()
+        if not room.tools and not self.parse_tools(tools):
             return False
 
         return True
 
 
-    def get_tools(self):
-        
+    def load_room(self):
+
         try:
             room = self.rooms[self.roomid]
             # If we don't do this, we just get the 'toolbar' at the top
@@ -140,31 +142,36 @@ class Fronter(object):
             url = self.TARGET + 'navbar.phtml?goto_prjid=%i' % room.id
             response = self.opener.open(url)
             xml = html.fromstring(response.read())
-            tools = xml.xpath('//a[@class="room-tool"]')
 
-            for tool in tools:
-                try:
-                    href = tool.get('href')
-                    toolid = int(re.findall('toolid=([0-9]+)', href)[0]) # IndexError
-                    title = tool.xpath('span[@class="tool-title"]')[0].text # TODO: encoding is nuts
-                    room.tools.append( [ title, Fronter._imp[toolid], href ] ) # KeyError
-                except (IndexError, KeyError):
-                    continue
-
-            if not room.tools:
-                print(col(' !! no tools available', c.ERR))
-                return False
-
-            elif self.__studentview__:
+            if self.__studentview__:
                 # Reload page with studentview if set in config
                 # Sometimes page won't load if not loaded as admin first
                 url = self.TARGET + 'contentframeset.phtml?goto_prjid=%i&intostudentview=1' % room.id
                 self.opener.open(url)
 
-            return True
+            return xml.xpath('//a[@class="room-tool"]')
 
         except AttributeError: # Should only happen in interactive session
             print(col(' !! you must select a room first', c.ERR))
+
+
+    def parse_tools(self, tools):
+
+        room = self.rooms[self.roomid]
+        for tool in tools:
+            try:
+                href = tool.get('href')
+                toolid = int(re.findall('toolid=([0-9]+)', href)[0]) # IndexError
+                title = tool.xpath('span[@class="tool-title"]')[0].text # TODO: encoding is nuts
+                room.tools.append( [ title, Fronter._imp[toolid], href ] ) # KeyError
+            except (IndexError, KeyError):
+                continue
+
+        if not room.tools:
+            print(col(' !! no tools available', c.ERR))
+            return False
+
+        return True
 
 
     def select_tool(self, idx):
