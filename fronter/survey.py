@@ -371,14 +371,22 @@ class Survey(Tool):
                 i = int(i) - 1
                 if i < 0:
                     raise IndexError
-                to_delete.append(self.replies[i])
-            except IndexError:
+                reply = self.replies[i]
+                assert(reply.data)
+                to_delete.append(reply)
+            except (IndexError, AssertionError):
                 continue
 
         self.delete(to_delete)
 
 
     def delete(self, to_delete):
+
+        for r in to_delete:
+            print(r.str())
+
+        if not to_delete or not Tool._ask('delete?'):
+            return
 
         payload = [('do_action' , 'delete_replies' ),
                    ('action'    , 'show_reply_list'),
