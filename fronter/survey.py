@@ -47,7 +47,7 @@ class Survey(Tool):
 
             self.text    = text
             self.idx     = idx
-            self.images   = images
+            self.images  = images
             self.answers = answers
             self.qtype   = qtype
 
@@ -147,8 +147,8 @@ class Survey(Tool):
         self.url    = url
         self.treeid = treeid
 
-        self._save     = os.path.join('fronter', 'save_survey_%i' % treeid)
-        self._dirty    = False
+        self._save  = os.path.join('fronter', 'save_survey_%i' % treeid)
+        self._dirty = False
 
 
     def str(self):
@@ -164,7 +164,7 @@ class Survey(Tool):
         if not resp:
             resp = self.opener.open(self._url + '?action=show_reply_list&surveyid=%i' % self.surveyid)
         xml = html.fromstring(resp.read())
-        self.replies = Survey._parse_replies(xml)
+        self.replies = sorted(Survey._parse_replies(xml), key=lambda r: r.date + r.title)
 
 
     def get_reply(self, idx):
@@ -475,6 +475,7 @@ class Survey(Tool):
             self.commands['del']   = Tool.Command('del',   self.delete_idx, '<index>', 'delete replies')
             self.commands['clean'] = Tool.Command('clean', self.clean, '',
                                                   'delete all but the best reply for each student')
+            self.commands['up']    = Tool.Command('up', self.read_replies, '', 'refresh replies')
             self._read_questions_and_solutions()
 
         else:
