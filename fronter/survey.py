@@ -15,16 +15,16 @@ class Survey(Tool):
             self.firstname = firstname
             self.lastname  = lastname
             self.title     = '%s %s' % (firstname, lastname)
+            self._code     = '0' if score else '1'
 
             self.date = col(time.strftime('%m-%d %H:%M'), c.HL, True) if time else col('NA', c.ERR, True)
 
-            self.status = status
+            self.status = col(status, c.HEAD) if status else col('NA', c.ERR)
             self.score  = score if score else 0
             self.data   = data
 
         def str(self):
-            return '%-21s %-40s %3i%% %s' % (self.date, self.title, self.score,
-                                    col(self.status, c.HEAD) if self.status else col('NA', c.ERR))
+            return '%-21s %-40s %5.1f%% %s' % (self.date, self.title, self.score, self.status)
 
 
     Answer    = namedtuple('Answer', ('text', 'value', 'correct', 'min', 'max'))
@@ -164,7 +164,7 @@ class Survey(Tool):
         if not resp:
             resp = self.opener.open(self._url + '?action=show_reply_list&surveyid=%i' % self.surveyid)
         xml = html.fromstring(resp.read())
-        self.replies = sorted(Survey._parse_replies(xml), key=lambda r: r.date + r.title)
+        self.replies = Survey._parse_replies(xml)
 
 
     def get_reply(self, idx):
@@ -628,7 +628,7 @@ class Survey(Tool):
                     delete_payload = [(item.name, item.get('value')) for item in delete]
                     show_payload   = dict(onclick.findall(name.xpath('./a')[0].get('onclick')))
                     data = Survey.Reply.Data(delete=delete_payload, show=show_payload)
-                    score = int(score[0].get('src').split('percent=')[-1].split('&')[0])
+                    score = float(score[0].get('src').split('percent=')[-1].split('&')[0])
                     status = status[0].text
                 except ValueError:
                     time = score = status = None
@@ -639,7 +639,7 @@ class Survey(Tool):
             except IndexError:
                 continue
 
-        return sorted(_tmp, key=lambda x: x.title + str(x.score))
+        return sorted(_tmp, key=lambda x: x._code + x.title)
 
 
     def _read_questions_and_solutions(self):
