@@ -347,7 +347,7 @@ return <Ctrl-D>
 exit                     exit
 h                        print commands
 lr                       list replies and scores
-get                      read comments to a reply
+get      <index>         read comments to a reply
 ls                       list questions
 go                       take survey
 goto     <index>         go to specific question
@@ -398,7 +398,7 @@ To list all questions, use the command `ls`. The box at the right of each questi
 >
 ```
 
-Question number 4 is missing an answer. To go directly to that question, type `goto 4`. Once you're happy with you answers, submit them with `post`. The list of question will be printed again, but instead of boxes with stars, the rightmost column displays your given answers, for a final review:
+Question number 4 is missing an answer. To go directly to that question, type `goto 4`. Once you're happy with your answers, submit them with `post`. The list of question will be printed again, but instead of boxes with stars, the rightmost column displays your given answers, for a final review:
 
 ```
 > post

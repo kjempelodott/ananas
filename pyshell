@@ -16,8 +16,7 @@ else:
     from urllib.error import URLError
 
 from socket import gaierror
-from fronter import NewToolInterrupt
-from fronter.plugins import Color
+from fronter import NewToolInterrupt, Color
 from fronter.client import Fronter
 
 c = Color()
@@ -45,10 +44,6 @@ def loop(instr):
             except KeyboardInterrupt:
                 print('')
             except NewToolInterrupt as ex:
-                print(col(ex.tool.title, c.HEAD))
-                if not hasattr(ex.tool, 'opener'):
-                    ex.tool.client = client
-                    ex.tool.parse()
                 print('')
                 shellify(ex.tool)
                 print('> exiting ' + ex.tool.str())

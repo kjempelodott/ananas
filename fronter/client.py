@@ -1,7 +1,6 @@
 from getpass import getuser, getpass
 
 from fronter import *
-from .plugins import MultipartPostHandler
 
 
 class Fronter(object):
@@ -34,13 +33,23 @@ class Fronter(object):
         except:
             self.__studentview__ = 0
 
-        self.ROOT = 'https://fronter.com/'
+        self.ROOT = 'https://fronter.com'
         self.TARGET = 'https://fronter.com/%s/' % org
 
         self.cookie_jar = HTTPCookieProcessor()
         self.opener = build_opener(HTTPRedirectHandler, MultipartPostHandler, self.cookie_jar)
         self.login(org)
         self.get_rooms()
+
+
+    def load_page(self, url, payload={}, find=None, replace=None):
+        response = self.opener.open(url, urlencode(payload).encode('ascii'))
+        data = response.read()
+        if replace:
+            data = data.replace(*replace)
+        if find:
+            return fromstring(data), re.findall(find, data.decode('utf-8'))
+        return fromstring(data)
 
 
     def login(self, org):
@@ -86,9 +95,7 @@ class Fronter(object):
 
     def print_notifications(self):
 
-        url = self.TARGET + 'personal/index.phtml'
-        response = self.opener.open(url)
-        xml = html.fromstring(response.read())
+        xml = self.load_page(self.TARGET + 'personal/index.phtml')
         table = xml.xpath('//table[contains(@class, "student-notification-element")]')[-1]
         rows = table.getchildren()
 
@@ -106,9 +113,7 @@ class Fronter(object):
 
     def get_rooms(self):
     
-        url = self.TARGET + 'adm/projects.phtml'
-        response = self.opener.open(url)
-        xml = html.fromstring(response.read())
+        xml = self.load_page(self.TARGET + 'adm/projects.phtml')
         rooms = xml.xpath('//a[@class="black-link"]')
         self.rooms = [ self.Room(name  = room.text.strip(), 
                                  id    = int(room.get('href').split('=')[-1]), 
@@ -139,9 +144,7 @@ class Fronter(object):
             url = self.TARGET + 'contentframeset.phtml?goto_prjid=%i' % room.id
             self.opener.open(url)
             # Read the 'toolbar' on the right hand side
-            url = self.TARGET + 'navbar.phtml?goto_prjid=%i' % room.id
-            response = self.opener.open(url)
-            xml = html.fromstring(response.read())
+            xml = self.load_page(self.TARGET + 'navbar.phtml?goto_prjid=%i' % room.id)
 
             if self.__studentview__:
                 # Reload page with studentview if set in config
@@ -194,3 +197,67 @@ class Fronter(object):
     def print_tools(self):
         for idx, tool in enumerate(self.rooms[self.roomid].tools):
             print(col('[%-3i] ' % (idx + 1), c.HL) + tool[0])
+
+
+class MultipartPostHandler(BaseHandler):
+
+    handler_order = HTTPHandler.handler_order - 10
+
+    def http_request(self, request):
+        data = request.data
+        if data is not None and type(data) != bytes:
+            files = []
+            header = []
+            try:
+                try:
+                    data = data.items()
+                except:
+                    pass
+
+                for key, value in data:
+                    if hasattr(value, 'fileno'):
+                        files.append((key, value))
+                    else:
+                        header.append((key, value))
+            except TypeError:
+                return request
+
+            if not files:
+                data = urlencode(header)
+            else:
+                bnd, data = self.multipart_encode(header, files)
+                request.add_unredirected_header('Content-Type', 'multipart/form-data; boundary=' + bnd)
+            request.data = data
+
+        return request
+
+    def multipart_encode(self, header, files):
+        bnd = choose_boundary()
+
+        buffer = ''
+        for key, value in header:
+            buffer += '--%s\r\n' % bnd
+            buffer += 'Content-Disposition: form-data; name="%s"' % key
+            buffer += '\r\n\r\n' + value + '\r\n'
+        buffer = buffer.encode('utf-8')
+
+        for key, fd in files:
+            file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
+            filename = fd.name.split('/')[-1]
+            contenttype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+
+            tmp = '--%s\r\n' % bnd
+            tmp += 'Content-Disposition: form-data; name="%s"; filename="%s"\r\n' % (key, filename)
+            tmp += 'Content-Type: %s\r\n' % contenttype
+            tmp += '\r\n'
+
+            fd.seek(0)
+            buffer += tmp.encode('utf-8')
+            buffer += fd.read()
+            buffer += '\r\n'.encode('utf-8')
+
+        end = '--%s--\r\n\r\n' % bnd
+        buffer += end.encode('utf-8')
+        return bnd, buffer
+
+    https_request = http_request

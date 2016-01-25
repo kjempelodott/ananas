@@ -1,5 +1,7 @@
 from glob import glob
 from difflib import SequenceMatcher
+from lxml import etree
+
 from fronter import *
 
 
@@ -9,16 +11,18 @@ class FileTree(Tool):
 
         def __init__(self, title, url, treeid, parent = None):
 
-            self.title = title
-            self.url = url
+            self.title  = title
+            self.url    = url
             self.treeid = treeid
             self.parent = parent
-            self.path = '/' if not parent else parent.path + title + '/'
+            self.path   = '/' if not parent else parent.path + title + '/'
+
             self.children = { 'leafs' : [], 'branches' : [] }
             self.menu = {}
 
         def str(self):
             return col(self.title, c.DIR)
+
 
     class Leaf(object):
 
@@ -29,8 +33,8 @@ class FileTree(Tool):
         def __init__(self, title, url):
 
             self.title = title
-            self.url = url
-            self.menu = {'get' : None}
+            self.url   = url
+            self.menu  = {'get' : None}
 
         def str(self):
             return '%-60s %s' % (self.title,
@@ -46,14 +50,16 @@ class FileTree(Tool):
                 except (AssertionError, ValueError, IndexError):
                     continue
 
+
     class Delivery(Leaf):
 
         def __init__(self, firstname, lastname, url, date, status):
 
             self.firstname = firstname
-            self.lastname = lastname
-            self.title = '%s %s' % (firstname, lastname)
-            self.url = url
+            self.lastname  = lastname
+            self.title     = '%s %s' % (firstname, lastname)
+            self.url       = url
+
             self.date = col(date.strftime('%Y-%m-%d'), c.HL, True) if date else col('NA', c.ERR, True)
             self.status = col(status, c.HEAD) if status else col('NA', c.ERR)
             self.menu = {}
@@ -64,7 +70,7 @@ class FileTree(Tool):
         @staticmethod
         def parse(xml, menus):
 
-            tr_odd = xml.xpath('//tr[@class="tablelist-odd"]')
+            tr_odd  = xml.xpath('//tr[@class="tablelist-odd"]')
             tr_even = xml.xpath('//tr[@class="tablelist-even"]')
 
             _tmp = []
@@ -109,28 +115,22 @@ class FileTree(Tool):
         self.url = url
         self.init_tree()
 
-        # Shell-like filesystem stuff
-        self.commands['ls'] = Tool.Command('ls', self.print_content, '', 'list content of current dir')
-        self.commands['cd'] = Tool.Command('cd', self.goto_idx, '<index>', 'change dir')
-        # Download
+        self.commands['ls']   = Tool.Command('ls', self.print_content, '', 'list content of current dir')
+        self.commands['cd']   = Tool.Command('cd', self.goto_idx, '<index>', 'change dir')
         self.commands['get']  = Tool.Command('get', self.download, '<index>', 'download files')
-        # Upload
         self.commands['post'] = Tool.Command('post', self.upload, '', 'upload files to current dir')
-        # Delete
         self.commands['del']  = Tool.Command('del', self.delete, '<index>', 'delete files')
-        # Evaluate
-        self.commands['eval#'] = Tool.Command('eval#', self.evaluate_all, '', 
+        self.commands['eval#']= Tool.Command('eval#', self.evaluate_all, '',
                                               'upload evaluations from xml')
-        self.commands['eval']  = Tool.Command('eval', self.evaluate, '<index>',
-                                              'read and edit evaluation')
+        self.commands['eval'] = Tool.Command('eval', self.evaluate, '<index>',
+                                             'read and edit evaluation')
 
 
     def init_tree(self):
         
-        response = self.opener.open(self.url)
-        treeid = int(re.findall('root_node_id=([0-9]+)', response.read().decode('utf-8'))[0])
-        url = self.TARGET + 'links/structureprops.phtml?treeid=%i' % treeid
-        root = FileTree.Branch('', url, treeid)
+        xml, treeid = self.load_page(self.url, find='root_node_id=([0-9]+)')
+        url = self.TARGET + 'links/structureprops.phtml?treeid=' + treeid[0]
+        root = FileTree.Branch('', url, int(treeid[0]))
         self._root = root
         self.__branches__ = {} # Keeps all branches in memory
         self.goto_branch(root)
@@ -155,6 +155,7 @@ class FileTree(Tool):
                 assert(not refresh) # Add/delete folders not implemented
                 tid = int(re.findall('[tree|survey]id=([0-9]+)', href)[0])
                 branch = None
+
                 if 'questiontest' in href: # Surveys are sort of 'folders'
                     url = self.TARGET + 'questiontest/index.phtml?' \
                           'action=show_test&surveyid=%i&force=1' % tid
@@ -162,7 +163,9 @@ class FileTree(Tool):
                 else:
                     url = self.TARGET + 'links/structureprops.phtml?treeid=%i' % tid
                     branch = FileTree.Branch(name, url, tid, self.cwd)
+
                 self.cwd.children['branches'].append(branch)
+
             except (AssertionError, IndexError):
                 if 'files.phtml' in href:
                     self.cwd.children['leafs'].append(FileTree.Leaf(name, href))
@@ -180,22 +183,18 @@ class FileTree(Tool):
             return
 
         if isinstance(branch, Survey):
+            branch.client = self
+            branch.parse()
             self.__branches__[treeid] = branch
             raise NewToolInterrupt(branch)
             return
 
         else: # Regular 'folder' with files
-
-            response = self.opener.open(branch.url)
-            data = response.read()
-            xml = html.fromstring(data)
+            xml, menus = self.load_page(branch.url, find='ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)')
+            menus = dict(menus)
 
             self.cwd = branch
             branch.children['leafs'] = []
-
-            menus = dict((mid, menu) for mid, menu in
-                         re.findall('ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)',
-                                    data.decode('utf-8')))
 
             if bool(xml.xpath('//td/label[@for="folder_todate"]')):
                 self.cwd.children['leafs'] = FileTree.Delivery.parse(xml, menus)
@@ -260,14 +259,13 @@ class FileTree(Tool):
         else:
             url = self.cwd.url
 
-        response = self.opener.open(url)
-        xml = html.fromstring(response.read())
+        xml = self.load_page(url)
         url, payload = self.prepare_form(xml)
 
         payload['do_action'] = 'file_save'
         for f in files:
             payload['file'] = open(f, 'rb')
-            self.opener.open(self.TARGET + url, payload)
+            self.opener.open(url, payload)
             print(col(' * ', c.ERR) + f)
 
         self.refresh()
@@ -342,7 +340,7 @@ class FileTree(Tool):
         comment_text = ''
         comment = xml.xpath('//input[@name="element_comment_hidden"]')[0]
         if comment.value:
-            comment_text = comment.value.strip()
+            comment_text = comment.value.strip().encode('utf8')
             print(col(xml.xpath('//label[@for="element_comment"]')[0].text, c.HL))
             print('"""\n' + comment_text + '\n"""')
 
@@ -379,8 +377,7 @@ class FileTree(Tool):
             print(col(' !! commenting not available (%s)' % leaf.title))
             return
         
-        response = self.opener.open(self.TARGET + 'links/' + leaf.menu['new_comment'].url)
-        xml = html.fromstring(response.read())
+        xml = self.load_page(self.TARGET + 'links/' + leaf.menu['new_comment'].url)
         evals = xml.xpath('//input[@type="radio"]')
 
         if not batch: 
@@ -482,11 +479,11 @@ class FileTree(Tool):
         url, payload = self.prepare_form(xml)
 
         payload['do_action']       = 'comment_save'
-        payload['element_comment'] = comment.encode('utf-8')
+        payload['element_comment'] = comment
         payload['grade']           = grade
         payload['aproved']         = evaluation
 
-        self.opener.open(self.TARGET + url, urlencode(payload).encode('ascii'))
+        self.opener.open(url, urlencode(payload).encode('ascii'))
 
         if not batch:
             self.refresh()

@@ -3,7 +3,10 @@ from datetime import datetime
 from tempfile import mkstemp
 from shutil import copyfileobj, copy
 from collections import OrderedDict, namedtuple
-from lxml import html, etree
+from lxml.html import fromstring, tostring
+from subprocess import call
+from email.generator import _make_boundary as choose_boundary
+import mimetypes
 
 if sys.version_info[0] == 2:
     from ConfigParser import ConfigParser
@@ -20,7 +23,44 @@ else:
     from urllib.error import HTTPError
     from html.parser import HTMLParser
 
-from .plugins import Color, Editor
+
+def wrap(text):
+    from textwrap import fill
+    return '\n'.join(fill(line, replace_whitespace=False) for line in text.splitlines())
+
+
+class Editor():
+
+    def __init__(self):
+        self.editor = os.getenv('VISUAL') or os.getenv('EDITOR') or \
+                      ('nano', 'notepad.exe')[sys.platform[:3] == 'win']
+        self.editor = self.editor.split()
+
+    def edit(self, fname):
+        mtime = os.stat(fname).st_mtime
+        call(self.editor + [fname])
+        return mtime != os.stat(fname).st_mtime
+
+    def new(self):
+        fd, fname = mkstemp(prefix='fronter_')
+        self.edit(fname)
+        return fd, fname
+
+
+# TODO: No need for a class
+class Color():
+
+    def __init__(self):
+
+        self.HEAD = '\033[1;33m'
+        self.HL   = '\033[1;36m'
+        self.DIR  = '\033[1;34m'
+        self.ERR  = '\033[31m'
+        self.END  = '\033[0m'
+
+    def colored(self, text, style = '\033[m', padding = False):
+        return style + text + self.END + padding * ' ' * (8 - len(style))
+
 
 c = Color()
 col = c.colored
@@ -63,9 +103,10 @@ class Tool(object):
 
     @client.setter
     def client(self, client):
-        self.TARGET = client.TARGET
-        self.ROOT   = client.ROOT
-        self.opener = client.opener
+        self.TARGET    = client.TARGET
+        self.ROOT      = client.ROOT
+        self.opener    = client.opener
+        self.load_page = client.load_page
 
     def print_commands(self):
         print(col('%s commands:' % str(self), c.HEAD))
@@ -92,6 +133,7 @@ class Tool(object):
         return yn == 'y'
 
 
+import html
 from .survey import Survey
 from .members import Members
 from .filetree import FileTree

@@ -1,5 +1,74 @@
+import smtplib
+from email.header import Header
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 from fronter import *
-from .plugins import Mailserver
+
+
+class Mailserver(smtplib.SMTP_SSL, object):
+
+    def __init__(self, user, secret):
+
+        try:
+            conf = ConfigParser()
+            conf.read('fronter.conf')
+            self.domain = conf.get('email', 'domain').strip('\'')
+            self.server = conf.get('email', 'server').strip('\'')
+            self.port   = int(conf.get('email', 'port').strip('\''))
+
+            if conf.has_option('email', 'username'):
+                self.username = conf.get('email', 'username').strip('\'')
+                print('\nConnecting to %s as %s ...' % (self.server, self.username))
+                from getpass import getpass
+                self.__secret__ = base64.b64encode(getpass().encode('utf-8'))
+            else:
+                self.username = user
+                self.__secret__ = secret
+        except:
+            print(col(' !! [email] domain/server/port not set in fronter.conf', c.ERR))
+            raise KeyboardInterrupt
+
+        self.me = user + '@' + self.domain
+
+
+    def sendmail(self, recipients):
+
+        subject = Header(input('> subject : '), 'utf-8')
+        msg = MIMEMultipart()
+        msg['Subject'] = subject
+
+        text = ''
+        with os.fdopen(txt.new()[0], 'rb') as f:
+            text = f.read()
+
+        print('> message:')
+        print('"""')
+        print(text)
+        print('"""')
+
+        yn = ''
+        while yn not in ('y', 'n'):
+            yn = input('> send this message? (y/n) ')
+
+        try:
+            assert(self.noop()[0] == 250)
+        except:
+            super(Mailserver, self).__init__(self.server, self.port)
+            self.login(self.username, base64.b64decode(self.__secret__).decode('ascii'))
+
+        if yn == 'y':
+
+            text = MIMEText(text, 'plain', 'utf-8')
+            msg.attach(text)
+
+            for rec in recipients:
+                try:
+                    super(Mailserver, self).sendmail(self.me, rec.email, msg.as_string())
+                    print(col(' * ', c.ERR) + rec.email)
+                except:
+                    print(col(' !! failed to send mail', c.ERR))
+                    break
 
 
 class Members(Tool):
@@ -7,8 +76,7 @@ class Members(Tool):
     class Member:
 
         def __init__(self, name, email, label):
-
-            self.name = name
+            self.name  = name
             self.email = email
             self.label = label.lower()
 
@@ -34,15 +102,18 @@ class Members(Tool):
 
     def get_members(self, url):
 
-        response = self.opener.open(url)
-        xml = html.fromstring(response.read())
-        name = xml.xpath('//tr/td[2]/label/a')
-        email = xml.xpath('//tr/td[4]/label')
-        label = xml.xpath('//tr/td[last()]/label')
-        for n, e, a in zip(name, email, label):
-            e = e.xpath('./a')
-            e = '' if not e else e[0].text
-            self.members.append(Members.Member(n.text, e, a.text))
+        xml = self.load_page(url)
+        rows = xml.xpath('//tr')
+
+        for row in rows:
+            try:
+                name  = row.xpath('./td[2]/label/a')[0].text
+                email = row.xpath('./td[4]/label/a')
+                label = row.xpath('./td[last()]/label')[0].text
+                email = '' if not email else email[0].text
+                self.members.append(Members.Member(name, email, label))
+            except IndexError:
+                pass
 
 
     def print_members(self):
