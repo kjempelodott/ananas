@@ -61,7 +61,7 @@ class Survey(Tool):
 
 
         def str(self, show_answer=False):
-            return '%-60s ... ' % self.title[:60] + (self.checkbox if not show_answer else
+            return '%-60s ... ' % self.title[:59] + (self.checkbox if not show_answer else
                     (col(self._given_answer, c.HEAD) if self.qtype != 'textarea' else \
                      col('\n"""\n%s\n"""' % self._given_answer, c.HEAD)))
 
@@ -368,7 +368,7 @@ class Survey(Tool):
     def delete(self, to_delete):
 
         for r in to_delete:
-            print(col(' * ', c.ERR) + r.str())
+            print(col(' *    ', c.ERR) + r.str())
 
         if not to_delete or not Tool._ask('delete?'):
             return

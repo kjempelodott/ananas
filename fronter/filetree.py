@@ -37,7 +37,7 @@ class FileTree(Tool):
             self.menu  = {'get' : None}
 
         def str(self):
-            return '%-55s %s' % (self.title[:55],
+            return '%-55s %s' % (self.title[:54],
                 ', '.join([FileTree.Leaf._imp[a] for a  in self.menu.keys()]))
 
         def make_menu(self, menu = ''):
@@ -537,7 +537,7 @@ class FileTree(Tool):
                     if not cfile and not comment:
                         print(col(' !! no comment or comments file (%s)' % name, c.ERR))
 
-                    print('%-40s %s' % (col(name[:40], c.HL, True), comment[0][:30] + ' ...'))
+                    print('%-40s %s' % (col(name[:39], c.HL, True), comment[0][:30] + ' ...'))
 
                     kwargs = {'idx'        : idx + 1,
                               'batch'      : True,

@@ -453,4 +453,85 @@ Note that comments are made per page, not per question, which might be a bit con
 
 ##### Evaluating replies
 
-...
+When entering a survey, admins are presented with the following menu:
+
+```
+Survey commands:
+return <Ctrl-D>
+exit                     exit
+h                        print commands
+ls                       list replies and scores
+get      <index>         read reply, comment on errors and evaluate
+eval     <index>         evaluate reply
+del      <index>         delete replies
+clean                    delete all but the best reply for each student
+up                       refresh replies
+>
+```
+
+To list all replies, use the command `ls`:
+
+```
+> ls
+[1  ] 01-26 15:43  Student1                                  80.0% Godkjent
+[2  ] 01-26 13:38  Student1                                  50.0% Ikke godkjent
+[3  ] 01-25 11:36  Student2                                  70.0% NA
+[4  ] NA           Student3                                   0.0% NA
+```
+
+Student1 has already gotten their reply approved, while Student3 has yet to respond. To read a reply, use the command `get`. Since comments are given per page in Fronter, you will be taken through each page and asked to give a comment. Just leave it blank if there is nothing to comment.
+
+```
+Q #1 Hvilken påstand er riktig?
+
+Student's answer(s):
+* foo
+
+Q #2 Hvilken påstand er riktig?
+
+Student's answer(s):
+* bar
+* baz
+
+Correct answer(s):
+* foo
+* baz
+> comment : bla bla ...
+```
+
+If the student replied correctly to the question, you will just see their answer. If not, the correct answer(s) will be shown as well. Depending on your color scheme, the wrong answers should stand out (in mye terminal: red). Press `ENTER` to continue to the next page:
+
+```
+> comment : bla bla ...
+
+  ******
+
+Q #1 Skriv et MATLAB-skript som ...
+
+Student's answer(s):
+"""
+foo = 2;
+bar = 1;
+baz = foo + bar;
+"""
+Score: 0.00
+> score (min=0, max=5) : 3
+> comment : bla bla ...
+```
+
+This page requires the teacher to score manually. The score must be within the `[min, max]` interval printed in the prompt. At the end, you will be shown the total score and asked for a final evaluation/grade and comment.
+
+```
+> comment : bla bla ...
+
+  ******
+
+Total score: 9.50/20.00
+> evaluation/grade: Godkjent
+> final comment : bla bla ...
+>
+```
+
+In case you just want to do the final evaluation/grading and comment, use the `eval` command. Before you start evaluating, be sure that you have an updated list of replies. Use the `up` command, which is equivalent to the reload button in your browser.
+
+Students usually have several goes at a survey. The `del` command take a space separated list of indices as argument and lets you delete all the crappy replies. Even more badass, the `clean` command removes all but the best reply for each student. As a safety precaution, these commands print all replies to be deleted and ask for confirmation.
