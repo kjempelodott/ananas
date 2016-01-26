@@ -482,6 +482,8 @@ To list all replies, use the command `ls`:
 Student1 has already gotten their reply approved, while Student3 has yet to respond. To read a reply, use the command `get`. Since comments are given per page in Fronter, you will be taken through each page and asked to give a comment. Just leave it blank if there is nothing to comment.
 
 ```
+> get 3
+
 Q #1 Hvilken påstand er riktig?
 
 Student's answer(s):
@@ -526,12 +528,12 @@ This page requires the teacher to score manually. The score must be within the `
 
   ******
 
-Total score: 9.50/20.00
+Total score: 15.00/20.00
 > evaluation/grade: Godkjent
 > final comment : bla bla ...
 >
 ```
 
-In case you just want to do the final evaluation/grading and comment, use the `eval` command. Before you start evaluating, be sure that you have an updated list of replies. Use the `up` command, which is equivalent to the reload button in your browser.
+In case you just want to do the final evaluation/grading and comment, use the `eval` command. Before you start commenting and evaluating, be sure that you have an updated list of replies. Use the `up` command, which is equivalent to the reload button in your browser.
 
-Students usually have several goes at a survey. The `del` command take a space separated list of indices as argument and lets you delete all the crappy replies. Even more badass, the `clean` command removes all but the best reply for each student. As a safety precaution, these commands print all replies to be deleted and ask for confirmation.
+Students usually have several goes at a survey. The `del` command takes a space separated list of indices as argument and lets you delete all the crappy replies. Even more badass, the `clean` command removes all but the best reply for each student. As a safety precaution, `del` and `clean` print all replies to be deleted and ask for confirmation.
