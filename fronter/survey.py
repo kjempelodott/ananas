@@ -23,7 +23,7 @@ class Survey(Tool):
             self.data   = data
 
         def str(self):
-            return '%-21s %-40s %5.1f%% %s' % (self.date, self.title, self.score, self.status)
+            return '%-21s %-40s %5.1f%% %s' % (self.date, self.title[:39], self.score, self.status)
 
 
     Answer    = namedtuple('Answer', ('text', 'value', 'correct', 'min', 'max'))

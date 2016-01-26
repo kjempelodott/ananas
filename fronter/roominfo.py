@@ -66,7 +66,7 @@ class RoomInfo(Tool):
 
         for idx, msg in enumerate(self.messages):
             print(col('[%-3i] ' % (idx + 1), c.HL) +
-                  '%-60s %s' % (msg.title + ' ... ', ', '.join(msg.menu)))
+                  '%-55s %s' % (msg.title + ' ... ', ', '.join(msg.menu)))
 
 
     def _get_msg(self, idx):

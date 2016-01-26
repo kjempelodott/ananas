@@ -37,7 +37,7 @@ class FileTree(Tool):
             self.menu  = {'get' : None}
 
         def str(self):
-            return '%-60s %s' % (self.title,
+            return '%-55s %s' % (self.title[:55],
                 ', '.join([FileTree.Leaf._imp[a] for a  in self.menu.keys()]))
 
         def make_menu(self, menu = ''):
@@ -65,7 +65,7 @@ class FileTree(Tool):
             self.menu = {}
 
         def str(self):
-            return '%-20s %-40s %s' % (self.date, self.title, self.status)
+            return '%-20s %-45s %s' % (self.date, self.title[:44], self.status)
 
         @staticmethod
         def parse(xml, menus):
@@ -537,7 +537,7 @@ class FileTree(Tool):
                     if not cfile and not comment:
                         print(col(' !! no comment or comments file (%s)' % name, c.ERR))
 
-                    print('%-45s %s' % (col(name, c.HL, True), comment[0][:30] + ' ...'))
+                    print('%-40s %s' % (col(name[:40], c.HL, True), comment[0][:30] + ' ...'))
 
                     kwargs = {'idx'        : idx + 1,
                               'batch'      : True,

@@ -82,9 +82,7 @@ class Members(Tool):
 
         # __str__ is broken in Python 2 - tries to encode in ascii
         def str(self):
-            return '%-35s %-45s %s' % (self.name, 
-                                       col(self.email, c.HL), 
-                                       col(self.label, c.HEAD))
+            return '%-30s %-30s %s' % (self.name[:29], self.email[:29], col(self.label, c.HEAD))
 
     def __init__(self, client, url):
 
