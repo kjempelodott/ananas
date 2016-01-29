@@ -138,10 +138,12 @@ class Survey(Tool):
     globals()[Question.__name__] = Question
     globals()[Answer.__name__]   = Answer
 
-    def __init__(self, title, url, treeid):
+    def __init__(self, client, title, url, treeid):
 
         super(Survey, self).__init__()
 
+        self.client = client
+        self.PATH   = self.TARGET + 'questiontest/index.phtml'
         self.title  = title
         self.url    = url
         self.treeid = treeid
@@ -164,7 +166,7 @@ class Survey(Tool):
         if resp:
             xml = fromstring(resp.read())
         else:
-            xml = self.load_page(self._url + '?action=show_reply_list&surveyid=%i' % self.surveyid)
+            xml = self.get_xml(self.PATH + '?action=show_reply_list&surveyid=%i' % self.surveyid)
         self.replies = Survey._parse_replies(xml)
 
 
@@ -177,7 +179,7 @@ class Survey(Tool):
         payload = dict((k,v) for k,v in reply.data.show.items())
         payload['pageno'] = 1
 
-        xml = self.load_page(self._url, payload)
+        xml = self.post(self.PATH, payload, xml=True)
         text = xml.xpath('//span[@class="label"]')
 
         try:
@@ -200,7 +202,7 @@ class Survey(Tool):
                 print(text[2].getparent().text_content().strip()[len(comment_hl):])
 
                 payload['pageno'] += 1
-                xml = self.load_page(self._url, payload)
+                xml = self.post(self.PATH, payload, xml=True)
                 text = xml.xpath('//span[@class="label"]')
 
             except AssertionError:
@@ -229,7 +231,7 @@ class Survey(Tool):
             teacher = {}
             payload['surveyid'] = surveyid
             # Omg, fronter html ...
-            xml = self.load_page(self._url, payload, replace=('<br>', '\n'))
+            xml = self.post(self.PATH, payload, xml=True, replace=('<br>', '\n'))
 
             for i, item in enumerate(questions.items()):
 
@@ -292,7 +294,9 @@ class Survey(Tool):
                     for aid in correct:
                         print(col('* ', c.HL) + q.answers[aid].text)
 
-            comment = _q.xpath('//textarea[@name="teachercomment"]')[0].text_content()
+            comment = _q.xpath('//textarea[@name="teachercomment"]') # Hmm, occasionally not found
+            if comment:
+                comment = comment[0].text_content()
             edit_comment = True
 
             if comment:
@@ -308,7 +312,7 @@ class Survey(Tool):
             if teacher:
                 teacher.update(payload)
                 teacher['do_action'] = 'save_comment'
-                self.opener.open(self._url, teacher)
+                self.post(self.PATH, teacher)
 
             print(col('\n  ******', c.HEAD))
 
@@ -323,7 +327,7 @@ class Survey(Tool):
 
         payload = dict((k,v) for k,v in reply.data.show.items())
         payload['action'] = 'total_score'
-        xml = self.load_page(self._url, payload)
+        xml = self.post(self.PATH, payload, xml=True)
 
         eval_grade = xml.xpath('//input[@name="total_score"]')[0]
         score = eval_grade.getparent().getnext()
@@ -354,7 +358,7 @@ class Survey(Tool):
 
             if eval_grade or comment:
                 payload['do_action'] = 'save_total_score'
-                self.opener.open(self._url, urlencode(payload).encode('ascii'))
+                self.post(self.PATH, payload)
                 self.read_replies()
 
 
@@ -380,7 +384,7 @@ class Survey(Tool):
         for r in to_delete:
             payload += r.data.delete
 
-        response = self.opener.open(self._url, urlencode(payload).encode('ascii'))
+        response = self.post(self.PATH, payload)
         self.read_replies(response)
 
 
@@ -424,7 +428,7 @@ class Survey(Tool):
 
         payload = [(qid, a.value) for qid, q in self.questions.items() for a in q._submit]
         payload += [(k,v) for k,v in self._payload.items()]
-        xml = self.load_page(self._url, payload)
+        xml = self.post(self.PATH, payload, xml=True)
         self._dirty = False
 
         for span in xml.xpath('//span[@class="label"]')[::-1]:
@@ -447,10 +451,9 @@ class Survey(Tool):
 
     def parse(self):
 
-        xml = self.load_page(self.url)
+        xml = self.get_xml(self.url)
 
-        url, payload  = self.prepare_form(xml)
-        self._url     = url
+        payload       = self.get_form(xml)
         self._payload = payload
         self.surveyid = int(payload['surveyid'])
 
@@ -500,9 +503,9 @@ class Survey(Tool):
                 pass
 
             if loaded: # Load last page to get submithash
-                payload['surveyid'] += self.npages
-                payload['pageno']    = self.npages
-                xml = self.load_page(url, payload)
+                payload['surveyid'] = self.surveyid + self.npages - 1
+                payload['pageno']   = self.npages - 1
+                xml = self.post(self.PATH, payload, xml=True)
             else:
                 items = xml.xpath('//table/tr/td/ul')
                 idx, self.questions = self._parse_page(items, 0)
@@ -514,7 +517,7 @@ class Survey(Tool):
 
                     payload['surveyid'] = surveyid
                     payload['pageno']   = pageno
-                    xml = self.load_page(url, payload)
+                    xml = self.post(self.PATH, payload, xml=True)
 
                     items = xml.xpath('//table/tr/td/ul')
                     idx, questions = self._parse_page(items, idx)
@@ -536,7 +539,7 @@ class Survey(Tool):
             payload['do_action']    = 'send_answer'
             payload['action']       = ''
             # Wtf, need to fix this
-            self.opener.open(url, urlencode(payload).encode('ascii'))
+            self.post(self.PATH, payload)
 
 
     def _parse_page(self, xmls, idx):
@@ -562,7 +565,7 @@ class Survey(Tool):
             _images = xml.xpath('.//img')
             images = []
             for i, img in enumerate(_images):
-                response = self.opener.open(self.ROOT + img.get('src'))
+                response = self.get(self.ROOT + img.get('src'))
                 ext = response.headers['content-disposition'].split('=')[-1].strip('"').split('.')[-1]
                 fd, fname = mkstemp(prefix='fronter_', suffix='.'+ext)
                 with os.fdopen(fd, 'wb') as f:
@@ -641,14 +644,14 @@ class Survey(Tool):
 
             while 1:
                 url = base_url + '/pages/%i' % surveyid
-                response = self.opener.open(url)
+                response = self.get(url)
                 page = json.loads(response.read().decode('utf-8').replace('\n',''))
                 _questions = page['questionIdList']
                 questions = OrderedDict()
 
                 for q in _questions:
                     url = base_url + '/questions/%i' % q
-                    response = self.opener.open(url)
+                    response = self.get(url)
                     q = json.loads(response.read().decode('utf-8').replace('\n',''))
 
                     _answers = q.get('answers', [])

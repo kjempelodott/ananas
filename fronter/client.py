@@ -5,6 +5,7 @@ from fronter import *
 
 class Fronter(object):
 
+    Log  = open('fronter.log', 'w')
     Room = namedtuple('Room', ['name', 'id', 'tools'])
     _imp = {
          3 : 'FileTree',
@@ -42,14 +43,55 @@ class Fronter(object):
         self.get_rooms()
 
 
-    def load_page(self, url, payload={}, find=None, replace=None):
-        response = self.opener.open(url, urlencode(payload).encode('ascii'))
+    def post(self, url, payload, **kwargs):
+        return self._request('POST', url, payload, **kwargs)
+
+    def get(self, url, **kwargs):
+        return self._request('GET', url, **kwargs)
+
+    def get_xml(self, url, **kwargs):
+        return self._request('GET', url, xml=True, **kwargs)
+
+    def _request(self, meth, url, payload=None, encode=True, xml=False, find=None, replace=None):
+
+        time = datetime.strftime(datetime.now(), '%H:%M:%S')
+        Fronter.Log.write('%s  %-10s %-4s %s\n' % (time, CLASS, meth, url))
+        Fronter.Log.flush()
+
+        if payload and encode:
+            payload = urlencode(payload).encode('ascii')
+        response = self.opener.open(url, payload)
+
+        if not find and not replace:
+            return response if not xml else fromstring(response.read())
+
         data = response.read()
+        to_return = response if not xml else fromstring(data)
         if replace:
             data = data.replace(*replace)
         if find:
-            return fromstring(data), re.findall(find, data.decode('utf-8'))
-        return fromstring(data)
+            return to_return, re.findall(find, data.decode('utf-8'))
+
+        return to_return
+
+    _request.func_globals['CLASS'] = 'Fronter'
+
+
+    def get_form(self, xml, name='actionform'):
+
+        forms = xml.xpath('//form')
+        form = None
+        for f in forms:
+            if f.get('name') == name:
+                form = f
+                break
+        else:
+            form = forms[0]
+
+        inputs = form.xpath('input[@type="hidden"]')
+        payload = dict((i.name, i.get('value')) for i in inputs)
+
+        return payload
 
 
     def login(self, org):
@@ -61,19 +103,19 @@ class Fronter(object):
         #         IDP requests SAML cookie
         #         Cookie!
         #
-        response = self.opener.open(self.TARGET)
+        response = self.get(self.TARGET)
 
 
-        # Step 2: Set organization
-        response = self.opener.open(response.url + '&org=%s.no' % org)
+        # Step 2: Set organization and etch hidden fields from content
+        response, payload = self.get(response.url + '&org=%s.no' % org,
+                                     find='name="(\w+)" value="(.+?)"')
+        payload = dict(payload)
 
 
         # Step 3: Login
         #
         #         IDP -> SP
         #
-        # Fetch hidden fields from content
-        payload = dict(re.findall('name="(\w+)" value="(.+?)"', response.read().decode('utf-8')))
         # Add username and password
         user = getuser()
         userinput = input('Username: (%s) ' % user)
@@ -81,21 +123,18 @@ class Fronter(object):
         payload['password'] = getpass().encode('utf-8')
         # Save it for later use, but encode it just in case lasers, pirates and stupid shit
         self.__secret__ = base64.b64encode(payload['password'])
-        data = urlencode(payload).encode('ascii')
-        response = self.opener.open(response.url, data)
+        xml, match = self.post(response.url, payload, xml=True, find='action="(.+?)"')
+        url = match[0]
+        payload = self.get_form(xml, None)
         
         
         # Step 4: Submit SAMLResponse
-        content = response.read().decode('utf-8')
-        url = re.findall('action="(.+?)"', content)[0]
-        payload = dict(re.findall('name="(\w+)" value="(.+?)"', content))
-        data = urlencode(payload).encode('ascii')
-        self.opener.open(url, data)
-       
+        self.post(url, payload)
+
 
     def print_notifications(self):
 
-        xml = self.load_page(self.TARGET + 'personal/index.phtml')
+        xml = self.get_xml(self.TARGET + 'personal/index.phtml')
         table = xml.xpath('//table[contains(@class, "student-notification-element")]')[-1]
         rows = table.getchildren()
 
@@ -113,7 +152,7 @@ class Fronter(object):
 
     def get_rooms(self):
     
-        xml = self.load_page(self.TARGET + 'adm/projects.phtml')
+        xml = self.get_xml(self.TARGET + 'adm/projects.phtml')
         rooms = xml.xpath('//a[@class="black-link"]')
         self.rooms = [ self.Room(name  = room.text.strip(), 
                                  id    = int(room.get('href').split('=')[-1]), 
@@ -142,15 +181,15 @@ class Fronter(object):
             room = self.rooms[self.roomid]
             # If we don't do this, we just get the 'toolbar' at the top
             url = self.TARGET + 'contentframeset.phtml?goto_prjid=%i' % room.id
-            self.opener.open(url)
+            self.get(url)
             # Read the 'toolbar' on the right hand side
-            xml = self.load_page(self.TARGET + 'navbar.phtml?goto_prjid=%i' % room.id)
+            xml = self.get_xml(self.TARGET + 'navbar.phtml?goto_prjid=%i' % room.id)
 
             if self.__studentview__:
                 # Reload page with studentview if set in config
                 # Sometimes page won't load if not loaded as admin first
                 url = self.TARGET + 'contentframeset.phtml?goto_prjid=%i&intostudentview=1' % room.id
-                self.opener.open(url)
+                self.get(url)
 
             return xml.xpath('//a[@class="room-tool"]')
 

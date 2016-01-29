@@ -119,6 +119,7 @@ def start_shell():
     select_room()
 
     print('> exit')            
+    Fronter.Log.close()
 
     for tmp in glob.glob(os.path.join(tempfile.gettempdir(), 'fronter_*')):
         os.unlink(tmp)

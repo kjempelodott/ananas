@@ -103,24 +103,23 @@ class Tool(object):
 
     @client.setter
     def client(self, client):
-        self.TARGET    = client.TARGET
-        self.ROOT      = client.ROOT
-        self.opener    = client.opener
-        self.load_page = client.load_page
+        self.TARGET   = client.TARGET
+        self.ROOT     = client.ROOT
+
+        self.opener   = client.opener
+
+        self.get_form = client.get_form
+        self.get      = client.get
+        self.get_xml  = client.get_xml
+        self.post     = client.post
+
+        self._request = client._request
+        self._request.func_globals['CLASS'] = self.__class__.__name__
 
     def print_commands(self):
         print(col('%s commands:' % str(self), c.HEAD))
         print(col('return <Ctrl-D>', c.HL))
         print('\n'.join(str(a) for a in self.commands.values()))
-
-    def prepare_form(self, xml):
-
-        form = xml.xpath('//form[@name="actionform"]')[0]
-        inputs = form.xpath('input[@type="hidden"]')
-        payload = dict((i.name, i.get('value')) for i in inputs)
-
-        url = form.get('action').lstrip('..')
-        return url, payload
 
     def clean_exit(self):
         pass

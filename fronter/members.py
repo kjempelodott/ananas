@@ -100,7 +100,7 @@ class Members(Tool):
 
     def get_members(self, url):
 
-        xml = self.load_page(url)
+        xml = self.get_xml(url)
         rows = xml.xpath('//tr')
 
         for row in rows:

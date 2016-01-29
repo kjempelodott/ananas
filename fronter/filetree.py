@@ -28,7 +28,7 @@ class FileTree(Tool):
 
         _imp = {'multi_delete' : 'del', 'new_comment' : 'eval', 'get' : 'get'}
 
-        Menu = namedtuple('Menu', ['name', 'url'])
+        Menu = namedtuple('Menu', ['name', 'query'])
 
         def __init__(self, title, url):
 
@@ -46,7 +46,8 @@ class FileTree(Tool):
                     key, url = item.split('^') # ValueError
                     action = url.split('action=')[1].split('&')[0] # IndexError
                     assert(action in FileTree.Leaf._imp)
-                    self.menu[action] = FileTree.Leaf.Menu(name = key.strip('"'), url = url)
+                    query = url.split('?')[1]
+                    self.menu[action] = FileTree.Leaf.Menu(name=key.strip('"'), query=query)
                 except (AssertionError, ValueError, IndexError):
                     continue
 
@@ -112,7 +113,8 @@ class FileTree(Tool):
         super(FileTree, self).__init__()
 
         self.client = client
-        self.url = url
+        self.PATH   = client.TARGET + 'links/structureprops.phtml'
+        self.url    = url
         self.init_tree()
 
         self.commands['ls']   = Tool.Command('ls', self.print_content, '', 'list content of current dir')
@@ -128,8 +130,8 @@ class FileTree(Tool):
 
     def init_tree(self):
         
-        xml, treeid = self.load_page(self.url, find='root_node_id=([0-9]+)')
-        url = self.TARGET + 'links/structureprops.phtml?treeid=' + treeid[0]
+        xml, treeid = self.get_xml(self.url, find='root_node_id=([0-9]+)')
+        url = self.PATH + '?treeid=' + treeid[0]
         root = FileTree.Branch('', url, int(treeid[0]))
         self._root = root
         self.__branches__ = {} # Keeps all branches in memory
@@ -159,9 +161,9 @@ class FileTree(Tool):
                 if 'questiontest' in href: # Surveys are sort of 'folders'
                     url = self.TARGET + 'questiontest/index.phtml?' \
                           'action=show_test&surveyid=%i&force=1' % tid
-                    branch = Survey(name, url, tid)
+                    branch = Survey(self, name, url, tid)
                 else:
-                    url = self.TARGET + 'links/structureprops.phtml?treeid=%i' % tid
+                    url = self.PATH + '?treeid=%i' % tid
                     branch = FileTree.Branch(name, url, tid, self.cwd)
 
                 self.cwd.children['branches'].append(branch)
@@ -183,14 +185,13 @@ class FileTree(Tool):
             return
 
         if isinstance(branch, Survey):
-            branch.client = self
             branch.parse()
             self.__branches__[treeid] = branch
             raise NewToolInterrupt(branch)
             return
 
         else: # Regular 'folder' with files
-            xml, menus = self.load_page(branch.url, find='ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)')
+            xml, menus = self.get_xml(branch.url, find='ez_Menu\[\'([0-9]+)\'\][=_\s\w]+\(\"(.+)"\)')
             menus = dict(menus)
 
             self.cwd = branch
@@ -231,7 +232,7 @@ class FileTree(Tool):
         print(col(self.cwd.path, c.HEAD))
 
 
-    def upload(self, assignment_xml = None, *comments_file):
+    def upload(self, assignment_xml=None, *comments_file):
 
         files, userinput = [], ''
         if not comments_file:
@@ -248,24 +249,30 @@ class FileTree(Tool):
         if not files:
             return
 
-        url = self.TARGET
-        if assignment_xml is not None:
+        url = self.PATH
+        payload = {'do_action'  : 'file_save',
+                   'treeid'     : str(self.cwd.treeid)}
+
+        if assignment_xml == None:
+            payload['php_action'] = 'file'
+        else:
             hrefs = assignment_xml.xpath('//table[@class="archive-inner"]//a')
             for href in hrefs:
                 href = href.get('href')
                 if 'personid' in href:
-                    url += href.lstrip('..')
+                    fields = dict(el.split('=') for el in href.split('?')[1].split('&'))
+                    payload['upload_as_comment'] = '1'
+                    payload['copy_of_id']        = fields['elementid']
+                    payload['override_userid']   = fields['personid']
+                    payload['php_action']        = 'new_comment'
                     break
-        else:
-            url = self.cwd.url
+            else:
+                print(col(' !! failed to fetch personid', c.ERR))
+                return
 
-        xml = self.load_page(url)
-        url, payload = self.prepare_form(xml)
-
-        payload['do_action'] = 'file_save'
         for f in files:
             payload['file'] = open(f, 'rb')
-            self.opener.open(url, payload)
+            self.post(url, payload, encode=False)
             print(col(' * ', c.ERR) + f)
 
         self.refresh()
@@ -302,7 +309,7 @@ class FileTree(Tool):
             fname = os.path.join(folder, fname)
 
             with open(fname, 'wb') as local:
-                copyfileobj(self.opener.open(self.ROOT + leaf.url), local)
+                copyfileobj(self.get(self.ROOT + leaf.url), local)
             print(col(' * ', c.ERR) + fname)
 
 
@@ -328,7 +335,7 @@ class FileTree(Tool):
                 print(col(' !! not authorized to delete (%s)' % leaf.title))
                 continue
 
-            self.opener.open(self.TARGET + 'links/' + leaf.menu['multi_delete'].url)
+            self.get(self.PATH + '?' + leaf.menu['multi_delete'].query)
             print(col(' * ', c.ERR) + leaf.title)
 
         self.refresh()
@@ -377,7 +384,7 @@ class FileTree(Tool):
             print(col(' !! commenting not available (%s)' % leaf.title))
             return
         
-        xml = self.load_page(self.TARGET + 'links/' + leaf.menu['new_comment'].url)
+        xml = self.get_xml(self.PATH + '?' + leaf.menu['new_comment'].query)
         evals = xml.xpath('//input[@type="radio"]')
 
         if not batch: 
@@ -391,7 +398,7 @@ class FileTree(Tool):
                 cfile = xml.xpath('//a[@target="_blank"]')
                 if cfile:
 
-                    url = self.TARGET + cfile[0].get('href').lstrip('..')
+                    url = self.TARGET + cfile[0].get('href').lstrip('../')
                     print('> download file with comments? (interrupt with Ctrl-C)')
                     folder = self._get_local_folder()
                     if not folder:
@@ -403,7 +410,7 @@ class FileTree(Tool):
                     fname   = os.path.join(folder, fname)
 
                     with open(fname, 'wb') as local:
-                        copyfileobj(self.opener.open(url), local)
+                        copyfileobj(self.get(url), local)
                     print(col(' * ', c.ERR) + fname)
 
                 return
@@ -476,14 +483,14 @@ class FileTree(Tool):
 
         # Finally, upload stuff
 
-        url, payload = self.prepare_form(xml)
+        payload = self.get_form(xml)
 
         payload['do_action']       = 'comment_save'
         payload['element_comment'] = comment
         payload['grade']           = grade
         payload['aproved']         = evaluation
 
-        self.opener.open(url, urlencode(payload).encode('ascii'))
+        self.post(self.PATH, payload)
 
         if not batch:
             self.refresh()
