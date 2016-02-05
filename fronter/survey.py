@@ -247,18 +247,21 @@ class Survey(Tool):
                 _q = xml.xpath('//a[@name="question%i"]' % qid)[0].getnext()
 
                 print('\n' + col('Q #%i ' % (i+1), c.HL) + col(q.text, c.DIR))
-                print('\n' + col('Student\'s answer(s):', c.HL))
 
                 if q.qtype == 'textarea':
 
+                    a = q.answers[0]
+                    if a.text:
+                        print('\n' + col('Solution/hint:', c.HL))
+                        print(a.text)
+
+                    print('\n' + col('Student\'s answer(s):', c.HL))
                     answer = _q.xpath('..//span')[0].text_content().strip()
                     print('"""\n' + answer + '\n"""')
 
                     sid = 'q_score_%i' % qid
                     score = _q.xpath('//input[@name="%s"]' % sid)[0].value
                     print(col('Score: %s' % score, c.HL))
-
-                    a = q.answers[0]
 
                     while 1:
                         try:
@@ -277,6 +280,8 @@ class Survey(Tool):
                             print(col(' !! answer out of range', c.ERR))
 
                 else:
+                    print('\n' + col('Student\'s answer(s):', c.HL))
+
                     checked = { int(c.value) for c in _q.xpath('.//input[@checked]') }
                     correct = { aid for aid, a in q.answers.items() if a.correct }
 
@@ -671,7 +676,8 @@ class Survey(Tool):
 
                     if qtype == 'Text':
                         min_score, max_score = float(q['minScore']), float(q['maxScore'])
-                        answers[0] = Survey.Answer('', 0, True, min_score, max_score)
+                        atext = q['correctAnswer']
+                        answers[0] = Survey.Answer(atext, 0, True, min_score, max_score)
                         qtype = 'textarea'
 
                     elif _answers:

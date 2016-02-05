@@ -66,9 +66,11 @@ class Fronter(object):
             return response if not xml else fromstring(response.read())
 
         data = response.read()
-        to_return = response if not xml else fromstring(data)
         if replace:
             data = data.replace(*replace)
+
+        to_return = response if not xml else fromstring(data)
+
         if find:
             return to_return, re.findall(find, data.decode('utf-8'))
 
