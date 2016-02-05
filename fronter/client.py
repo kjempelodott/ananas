@@ -52,14 +52,14 @@ class Fronter(object):
     def get_xml(self, url, **kwargs):
         return self._request('GET', url, xml=True, **kwargs)
 
-    def _request(self, meth, url, payload=None, encode=True, xml=False, find=None, replace=None):
+    def _request(self, meth, url, payload=None, encoding='ascii', xml=False, find=None, replace=None):
 
         time = datetime.strftime(datetime.now(), '%H:%M:%S')
         Fronter.Log.write('%s  %-10s %-4s %s\n' % (time, CLASS, meth, url))
         Fronter.Log.flush()
 
-        if payload and encode:
-            payload = urlencode(payload).encode('ascii')
+        if payload and encoding:
+            payload = urlencode(payload).encode(encoding)
         response = self.opener.open(url, payload)
 
         if not find and not replace:

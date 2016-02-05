@@ -37,10 +37,12 @@ class Survey(Tool):
 
         Hints     = {'radio'    : 'one answer',
                      'checkbox' : 'multiple choice',
+                     'input'    : 'written answer',
                      'textarea' : 'written answer'}
 
         Prompts   = {'radio'    : 'answer <index> : ',
-                     'checkbox' : 'answer <index index ... > : '}
+                     'checkbox' : 'answer <index index ... > : ',
+                     'input'    : 'answer : '}
 
         def __init__(self, text, idx, images = [], answers = [], qtype = None):
 
@@ -78,7 +80,7 @@ class Survey(Tool):
             if not self.answers:
                 return
 
-            if self.qtype != 'textarea':
+            if self.qtype not in ('textarea', 'input'):
                 for i, ans in enumerate(self.answers):
                     print(col('[%-3i] ' % (i + 1), c.HL) + ans.text)
             print('\n' + col(self.hint, c.ERR))
@@ -104,13 +106,11 @@ class Survey(Tool):
                                 self._given_answer = f.read().strip()
                                 self._textf = fname
 
-                        text = self.answers.pop().text
-                        self.answers.append(Survey.Answer(text, self._given_answer))
-                        self._submit = self.answers
+                        self.answers = self._submit = [Survey.Answer('', self._given_answer)]
                         self.checkbox = Survey.Question.CHECKED
                         return
 
-                    # radio/checkbox
+                    # radio/checkbox/input
                     if self._given_answer:
                         print(col('Your answer: %s' % self._given_answer, c.HL))
                     reply = input('> %s' % self.prompt).strip()
@@ -118,13 +118,18 @@ class Survey(Tool):
                     if not reply:
                         break
 
-                    ix = list(map(int, reply.split())) # ValueError
-                    assert(len(ix) and len(ix) <= self._len)
-                    if not all(i > 0 for i in ix):
-                        raise IndexError
+                    if self.qtype == 'input':
+                        self._given_answer = reply.decode('utf8')
+                        self.answers = self._submit = [Survey.Answer('', reply)]
+                    else:
+                        ix = list(map(int, reply.split())) # ValueError
+                        assert(len(ix) and len(ix) <= self._len)
+                        if not all(i > 0 for i in ix):
+                            raise IndexError
 
-                    self._submit = [self.answers[i-1] for i in ix] # IndexError
-                    self._given_answer = ' '.join(map(str, ix))
+                        self._submit = [self.answers[i-1] for i in ix] # IndexError
+                        self._given_answer = ' '.join(map(str, ix))
+
                     self.checkbox = Survey.Question.CHECKED
                     break
                 except ValueError:
@@ -428,7 +433,9 @@ class Survey(Tool):
 
         payload = [(qid, a.value) for qid, q in self.questions.items() for a in q._submit]
         payload += [(k,v) for k,v in self._payload.items()]
-        xml = self.post(self.PATH, payload, xml=True)
+        for it in payload:
+            print it
+        xml = self.post(self.PATH, payload, xml=True, encoding='utf-8')
         self._dirty = False
 
         for span in xml.xpath('//span[@class="label"]')[::-1]:
@@ -535,9 +542,10 @@ class Survey(Tool):
                 print(col(' !! failed to get submithash (submit might not work)', c.ERR))
 
             # Prepare for submit
-            payload['test_section'] = self.surveyid
-            payload['do_action']    = 'send_answer'
-            payload['action']       = ''
+            payload['test_section']   = self.surveyid
+            payload['check_surveyid'] = payload['surveyid']
+            payload['do_action']      = 'send_answer'
+            payload['action']         = ''
             # Wtf, need to fix this
             self.post(self.PATH, payload)
 
@@ -574,7 +582,8 @@ class Survey(Tool):
 
             radio = xml.xpath('.//input[@type="radio"]')
             checkbox = xml.xpath('.//input[@type="checkbox"]')
-            textarea = xml.xpath('../ul/textarea[@class="question-textarea"]')
+            text_input = xml.xpath('.//input[@class="question-reply"]')
+            textarea = xml.xpath('.//textarea[@class="question-textarea"]')
 
             if radio:
                 answers = [Survey.Answer(wrap(a.label.text), a.get('value')) for a in radio]
@@ -582,10 +591,12 @@ class Survey(Tool):
             elif checkbox:
                 answers = [Survey.Answer(wrap(a.label.text), a.get('value')) for a in checkbox]
                 questions[checkbox[0].name] = Survey.Question(text, idx, images, answers, 'checkbox')
+            elif text_input:
+                answers = [Survey.Answer('', '')]
+                questions[text_input[0].name] = Survey.Question(text, idx, images, answers, 'input')
             elif textarea:
-                answers = [Survey.Answer('', textarea[0].get('value'))]
+                answers = [Survey.Answer('', '')]
                 questions[textarea[0].name] = Survey.Question(text, idx, images, answers, 'textarea')
-                break
             else:
                 questions['info_%i' % idx] = Survey.Question(text, idx, images)
 
