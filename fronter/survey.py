@@ -251,7 +251,7 @@ class Survey(Tool):
 
                 if q.qtype == 'textarea':
 
-                    answer = _q.getparent().find('span').text_content().strip()
+                    answer = _q.xpath('..//span')[0].text_content().strip()
                     print('"""\n' + answer + '\n"""')
 
                     sid = 'q_score_%i' % qid
