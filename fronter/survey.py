@@ -252,7 +252,7 @@ class Survey(Tool):
 
                     a = q.answers[0]
                     if a.text:
-                        print('\n' + col('Solution/hint:', c.HL))
+                        print('\n' + col('Solution/hint:', c.HEAD))
                         print(a.text)
 
                     print('\n' + col('Student\'s answer(s):', c.HL))
@@ -300,7 +300,7 @@ class Survey(Tool):
                     for aid in checked - (correct & checked):
                         print(col('* ' + q.answers[aid].text, c.ERR))
 
-                    print('\n' + col('Correct answer(s):', c.HL))
+                    print('\n' + col('Correct answer(s):', c.HEAD))
                     for aid in correct:
                         print(col('* ', c.HL) + q.answers[aid].text)
 
