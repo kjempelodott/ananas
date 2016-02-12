@@ -438,8 +438,6 @@ class Survey(Tool):
 
         payload = [(qid, a.value) for qid, q in self.questions.items() for a in q._submit]
         payload += [(k,v) for k,v in self._payload.items()]
-        for it in payload:
-            print it
         xml = self.post(self.PATH, payload, xml=True, encoding='utf-8')
         self._dirty = False
 
