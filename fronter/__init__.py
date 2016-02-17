@@ -1,9 +1,14 @@
+try: # Because python shell in OS X is stupid and doesn't exit upon ImportError
+    from lxml.html import fromstring, tostring
+except ImportError as err:
+    print(err)
+    exit()
+
 import os, sys, re, stat, base64
 from datetime import datetime
 from tempfile import mkstemp
 from shutil import copyfileobj, copy
 from collections import OrderedDict, namedtuple
-from lxml.html import fromstring, tostring
 from subprocess import call
 from email.generator import _make_boundary as choose_boundary
 import mimetypes
