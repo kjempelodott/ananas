@@ -303,9 +303,7 @@ class FileTree(Tool):
                 print(col(' !! %s has not uploaded the assignment yet' % leaf.title, c.ERR))
                 continue
 
-            fname = unquote_plus(os.path.basename(leaf.url))
-            if isinstance(leaf, FileTree.Delivery):
-                fname = '%s_%s' % (leaf.lastname, fname)
+            fname = unquote_plus(os.path.basename(leaf.url).replace('_prcent_', '%'))
             fname = os.path.join(folder, fname)
 
             with open(fname, 'wb') as local:
