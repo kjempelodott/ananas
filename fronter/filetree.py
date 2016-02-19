@@ -58,7 +58,7 @@ class FileTree(Tool):
 
             self.firstname = firstname
             self.lastname  = lastname
-            self.title     = '%s %s' % (firstname, lastname)
+            self.title     = '%s, %s' % (lastname, firstname)
             self.url       = url
 
             self.date = col(date.strftime('%Y-%m-%d'), c.HL, True) if date else col('NA', c.ERR, True)
