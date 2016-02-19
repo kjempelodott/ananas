@@ -289,9 +289,11 @@ class Survey(Tool):
                         print(col('<blank>', c.ERR))
                         continue
 
+                    score = 0
                     # Correct answers by student
                     for aid in correct & checked:
                         print(col('* ', c.HL) + q.answers[aid].text)
+                        score += q.answers[aid].max
 
                     if checked == correct:
                         continue
@@ -299,10 +301,16 @@ class Survey(Tool):
                     # Wrong answers by students
                     for aid in checked - (correct & checked):
                         print(col('* ' + q.answers[aid].text, c.ERR))
+                        score += q.answers[aid].max # Negative or zero
 
+                    maxscore = 0
                     print('\n' + col('Correct answer(s):', c.HEAD))
                     for aid in correct:
                         print(col('* ', c.HL) + q.answers[aid].text)
+                        maxscore += q.answers[aid].max
+
+                    print(col('\nScore: ', c.HEAD) + '%g/%g' % (score, maxscore))
+
 
             comment = _q.xpath('//textarea[@name="teachercomment"]') # Hmm, occasionally not found
             if comment:
@@ -680,10 +688,11 @@ class Survey(Tool):
 
                     elif _answers:
                         for a in _answers:
+                            score   = float(a['answerScore'])
                             atext   = a['answerText']
                             aid     = a['answerId']
-                            correct = a['answerCorrect']
-                            answers[aid] = Survey.Answer(wrap(atext), aid, correct)
+                            correct = a['answerCorrect'] or score > 0
+                            answers[aid] = Survey.Answer(wrap(atext), aid, correct, 0, score)
 
                     else:
                         continue
