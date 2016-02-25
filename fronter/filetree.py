@@ -58,6 +58,7 @@ class FileTree(Tool):
 
             self.firstname = firstname
             self.lastname  = lastname
+            self.name      = '%s %s' % (firstname, lastname)
             self.title     = '%s, %s' % (lastname, firstname)
             self.url       = url
 
@@ -272,7 +273,7 @@ class FileTree(Tool):
 
         for f in files:
             payload['file'] = open(f, 'rb')
-            self.post(url, payload, encode=False)
+            self.post(url, payload, encoding=None)
             print(col(' * ', c.ERR) + f)
 
         self.refresh()
@@ -484,7 +485,7 @@ class FileTree(Tool):
         payload = self.get_form(xml)
 
         payload['do_action']       = 'comment_save'
-        payload['element_comment'] = comment
+        payload['element_comment'] = comment.encode('utf-8')
         payload['grade']           = grade
         payload['aproved']         = evaluation
 
@@ -518,9 +519,9 @@ class FileTree(Tool):
 
                     _cmp = []
                     for leaf in self.cwd.children['leafs']:
-                        _cmp.append(leaf.title.lower())
+                        _cmp.append(leaf.name.lower())
                         if _cmp[-1] == name:
-                            idx, name = len(_cmp) - 1, leaf.title
+                            idx, name = len(_cmp) - 1, leaf.name
                     else:
                         score = [SequenceMatcher(None, name, item).ratio() for item in _cmp]
                         win   = max(score)
@@ -542,7 +543,9 @@ class FileTree(Tool):
                     if not cfile and not comment:
                         print(col(' !! no comment or comments file (%s)' % name, c.ERR))
 
-                    print('%-40s %s' % (col(name[:39], c.HL, True), comment[0][:30] + ' ...'))
+                    print('%-40s %-20s ... %s' % (col(name[:25], c.HL, True),
+                                                  comment[0][:20],
+                                                  col(evaluation, c.HEAD)))
 
                     kwargs = {'idx'        : idx + 1,
                               'batch'      : True,
