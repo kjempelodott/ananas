@@ -309,7 +309,7 @@ class FileTree(Tool):
 
             with open(fname, 'wb') as local:
                 copyfileobj(self.get(self.ROOT + leaf.url), local)
-            print(col(' * ', c.ERR) + fname)
+            print(col(' * ', c.ERR) + 'file://' + fname)
 
 
     def delete(self, idx):
