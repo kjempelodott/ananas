@@ -452,7 +452,7 @@ class FileTree(Tool):
 
         else: # Extract kwargs
 
-            comment    = kwargs.get('comment', '')
+            comment    = kwargs.get('comment', '').encode('utf-8')
             evaluation = kwargs.get('evaluation', '')
             grade      = kwargs.get('grade', '')
             cfile      = kwargs.get('cfile', '')
@@ -485,7 +485,7 @@ class FileTree(Tool):
         payload = self.get_form(xml)
 
         payload['do_action']       = 'comment_save'
-        payload['element_comment'] = comment.encode('utf-8')
+        payload['element_comment'] = comment
         payload['grade']           = grade
         payload['aproved']         = evaluation
 
