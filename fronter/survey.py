@@ -469,7 +469,7 @@ class Survey(Tool):
 
     def parse(self):
 
-        xml = self.get_xml(self.url)
+        xml, surveyid_jumps = self.get_xml(self.url, find='test_page_jump\([\d,\s]+\)')
 
         payload       = self.get_form(xml)
         self._payload = payload
@@ -521,28 +521,29 @@ class Survey(Tool):
                 pass
 
             if loaded: # Load last page to get submithash
-                payload['surveyid'] = self.surveyid + self.npages - 1
+                payload['surveyid'] = self.questions._last_surveyid
                 payload['pageno']   = self.npages - 1
                 xml = self.post(self.PATH, payload, xml=True)
+
             else:
                 items = xml.xpath('//table/tr/td/ul')
                 idx, self.questions = self._parse_page(items, 0)
 
                 pageno = 1
-                surveyid = self.surveyid + 1
 
                 while pageno < self.npages:
-
-                    payload['surveyid'] = surveyid
+                    payload['surveyid'] = int(surveyid_jumps[-1].split('(')[-1].split(',')[1])
                     payload['pageno']   = pageno
-                    xml = self.post(self.PATH, payload, xml=True)
+                    xml, surveyid_jumps = self.post(self.PATH, payload, xml=True,
+                                                    find='test_page_jump\([\d,\s]+\)')
 
                     items = xml.xpath('//table/tr/td/ul')
                     idx, questions = self._parse_page(items, idx)
                     self.questions.update(questions)
 
                     pageno   += 1
-                    surveyid += 1
+
+                self.questions._last_surveyid = payload['surveyid']
 
             for script in xml.xpath('//script[@type="text/javascript"]')[::-1]:
                 submithash = re.search('submithash\.value\s?=\s?"(\w+)";', script.text_content())
