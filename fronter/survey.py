@@ -540,8 +540,7 @@ class Survey(Tool):
                     items = xml.xpath('//table/tr/td/ul')
                     idx, questions = self._parse_page(items, idx)
                     self.questions.update(questions)
-
-                    pageno   += 1
+                    pageno += 1
 
                 self.questions._last_surveyid = payload['surveyid']
 
@@ -659,18 +658,19 @@ class Survey(Tool):
     def _read_questions_and_solutions(self):
 
         base_url = self.TARGET + 'app/teststudio/author/tests/%i' % self.treeid
-        surveyid = self.surveyid
 
         try:
             self.pages = OrderedDict()
             self.opener.addheaders = [('accept', 'application/json')]
+            survey = json.loads(self.get(base_url).read().decode('utf-8'))
 
-            while 1:
-                url = base_url + '/pages/%i' % surveyid
-                response = self.get(url)
-                page = json.loads(response.read().decode('utf-8').replace('\n',''))
+            for surveyid in survey['pageIdList']:
+
+                url        = base_url + '/pages/%i' % surveyid
+                response   = self.get(url)
+                page       = json.loads(response.read().decode('utf-8').replace('\n',''))
                 _questions = page['questionIdList']
-                questions = OrderedDict()
+                questions  = OrderedDict()
 
                 for q in _questions:
                     url = base_url + '/questions/%i' % q
@@ -707,7 +707,6 @@ class Survey(Tool):
 
                 if questions:
                     self.pages[surveyid] = questions
-                surveyid += 1
 
         except HTTPError: # end of pages
             self.opener.addheaders = []
